@@ -86,15 +86,22 @@ unsigned long lastMsg = 0;
 char msg[MSG_BUFFER_SIZE];
 int value = 0;
 
+/*
 char ssidA[] = secret_ssid_AP_1;
 char passA[] = secret_pass_AP_1;
 char ssidB[] = secret_ssid_AP_2;
 char passB[] = secret_pass_AP_2;
+char ssidC[] = secret_ssid_AP_3;
+char passC[] = secret_pass_AP_3;
+*/
 
 char mqtt_server[] = mqtt_Server;
 char mqtt_username[] = mqtt_UserName;
 char mqtt_password[] = mqtt_Password;
 const int mqtt_port = mqtt_Port;
+bool mqtt_connected = false;
+bool wifi_connected = false;
+int wifi_connect_attempts = 5;
 
 #define MQTT_PUB_TOPIC1  "msb/gate/temp"
 #define MQTT_PUB_TOPIC2  "msb/gate/time"
@@ -102,7 +109,7 @@ const int mqtt_port = mqtt_Port;
 
 
 
-const uint32_t connectTimeoutMs = 10000;
+//const uint32_t connectTimeoutMs = 10000;
 uint16_t connectTimeOutPerAP=5000;
 const char* ampm ="AM";
 const char* ntpServer = "pool.ntp.org";
@@ -123,6 +130,7 @@ unsigned long highMillis = 0; //Grab the time when the vehicle sensor is high
 unsigned long previousMillis; // Last time sendor pin changed state
 unsigned long currentMillis; // Comparrison time holder
 unsigned long carDetectedMillis;  // Grab the ime when sensor 1st trips
+unsigned long wifi_connectionMillis;
 int detectorState;
 int previousdetectorState;
 File myFile; //used to write files to SD Card
@@ -138,9 +146,15 @@ void setup_wifi() {
     Serial.println("Connecting to WiFi");
     display.println("Connecting to WiFi..");
     display.display();
+    wifi_connectionMillis = millis()*5*connectTimeOutPerAP;
     while(wifiMulti.run(connectTimeOutPerAP) != WL_CONNECTED) {
       Serial.print(".");
+      if (millis() > wifi_connectionMillis){
+        wifi_connected = false;
+        return;
+      }
     }
+    wifi_connected = true;
     randomSeed(micros());
     Serial.println("Connected to the WiFi network");
     display.clearDisplay();
@@ -197,15 +211,17 @@ void reconnect() {
     if (mqtt_client.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
       Serial.println("connected!");
       // Once connected, publish an announcement…
-      mqtt_client.publish("testTopic", "Hello World!");
+      mqtt_client.publish("testTopic", "Hello from Gate Counter!");
       // … and resubscribe
       mqtt_client.subscribe("testTopic");
+      mqtt_connected = true;
     } else {
       Serial.print("failed, rc = ");
       Serial.print(mqtt_client.state());
       Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
+      // Offline Mode
+      mqtt_connected = false;
+      return;
     }
   }
 }
@@ -323,6 +339,7 @@ void setup() {
   
   wifiMulti.addAP(secret_ssid_AP_1,secret_pass_AP_1);
   wifiMulti.addAP(secret_ssid_AP_2,secret_pass_AP_2);
+  wifiMulti.addAP(secret_ssid_AP_3,secret_pass_AP_3);
   
   // WiFi.scanNetworks will return the number of networks found
   int n = WiFi.scanNetworks();
@@ -557,13 +574,15 @@ void loop() {
                       myFile.println(temp);
                       myFile.close();
                       Serial.println(F(" = Total Daily Cars. CarLog Recorded SD Card."));
-                      mqtt_client.publish(MQTT_PUB_TOPIC1, String(temp).c_str());
-                      mqtt_client.publish(MQTT_PUB_TOPIC2, now.toString(buf2));
-                      mqtt_client.publish(MQTT_PUB_TOPIC3, String(totalDailyCars).c_str());
-                      //snprintf (msg, MSG_BUFFER_SIZE, "Car #%ld,", totalDailyCars);
-                      //Serial.print("Publish message: ");
-                      //Serial.println(msg);
-                      //mqtt_client.publish("msbGateCount", msg);
+                      if (mqtt_connected == true) {
+                        mqtt_client.publish(MQTT_PUB_TOPIC1, String(temp).c_str());
+                        mqtt_client.publish(MQTT_PUB_TOPIC2, now.toString(buf2));
+                        mqtt_client.publish(MQTT_PUB_TOPIC3, String(totalDailyCars).c_str());
+                        //snprintf (msg, MSG_BUFFER_SIZE, "Car #%ld,", totalDailyCars);
+                        //Serial.print("Publish message: ");
+                        //Serial.println(msg);
+                        //mqtt_client.publish("msbGateCount", msg);
+                      }
                   } else {
                       Serial.print(F("SD Card: Issue encountered while attempting to open the file GateCount.csv"));
                   }
