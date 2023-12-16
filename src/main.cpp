@@ -116,6 +116,8 @@ int currentMin = 0;
 int totalDailyCars = 0;
 int carPresent = 0;
 int sensorBounces =0;
+int mqtt_connection =0;
+int connectionAttempts = 5;
 unsigned long detectorMillis = 0;
 unsigned long debounceMillis = 12000; // Time required for my truck to pass totally
 unsigned long nocarMillis = 3500; // Time required for High Pin to stay high to reset car in detection zone
@@ -173,7 +175,7 @@ void setup_wifi() {
     display.print(rssi);
     display.println(" dBm");
     display.display();
-    delay(10000);
+    delay(5000);
 }
 
 
@@ -188,7 +190,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 }
 
 
-void reconnect() {
+void mqtt_reconnect() {
   // Loop until we’re reconnected
   while (!mqtt_client.connected()) {
     Serial.print("Attempting MQTT connection… ");
@@ -200,12 +202,13 @@ void reconnect() {
       mqtt_client.publish("testTopic", "Hello World!");
       // … and resubscribe
       mqtt_client.subscribe("testTopic");
+      mqtt_connection=1;
     } else {
       Serial.print("failed, rc = ");
       Serial.print(mqtt_client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
+      Serial.println(" try again later");
+      mqtt_connection=0;
+      break;
     }
   }
 }
@@ -388,9 +391,9 @@ void setup() {
 void loop() {
     if (wifiMulti.run() == WL_CONNECTED) {
       
-      if (!mqtt_client.connected()){
-        reconnect();
-      }
+     if (!mqtt_client.connected()) {
+       mqtt_reconnect();
+     }
       DateTime now = rtc.now();
       temp=((rtc.getTemperature()*9/5)+32);
       //Reset Gate Counter at 5:00:00 pm
@@ -557,13 +560,15 @@ void loop() {
                       myFile.println(temp);
                       myFile.close();
                       Serial.println(F(" = Total Daily Cars. CarLog Recorded SD Card."));
-                      mqtt_client.publish(MQTT_PUB_TOPIC1, String(temp).c_str());
-                      mqtt_client.publish(MQTT_PUB_TOPIC2, now.toString(buf2));
-                      mqtt_client.publish(MQTT_PUB_TOPIC3, String(totalDailyCars).c_str());
-                      //snprintf (msg, MSG_BUFFER_SIZE, "Car #%ld,", totalDailyCars);
-                      //Serial.print("Publish message: ");
-                      //Serial.println(msg);
-                      //mqtt_client.publish("msbGateCount", msg);
+                      if (mqtt_client.connected()) {
+                        mqtt_client.publish(MQTT_PUB_TOPIC1, String(temp).c_str());
+                        mqtt_client.publish(MQTT_PUB_TOPIC2, now.toString(buf2));
+                        mqtt_client.publish(MQTT_PUB_TOPIC3, String(totalDailyCars).c_str());
+                        //snprintf (msg, MSG_BUFFER_SIZE, "Car #%ld,", totalDailyCars);
+                        //Serial.print("Publish message: ");
+                        //Serial.println(msg);
+                        //mqtt_client.publish("msbGateCount", msg);
+                      }
                   } else {
                       Serial.print(F("SD Card: Issue encountered while attempting to open the file GateCount.csv"));
                   }
