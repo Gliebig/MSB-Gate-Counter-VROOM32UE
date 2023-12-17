@@ -509,6 +509,7 @@ void loop() {
 	    currentMillis = millis(); // grab current time
 
 	    // Sensing Vehicle  
+      // Detector LOW when vehicle sensed, Normally HIGH
       if (detectorState == LOW) {
           carPresent = 1;
           carDetectedMillis = millis(); // Time car was detected
