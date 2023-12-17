@@ -340,6 +340,7 @@ void setup() {
   wifiMulti.addAP(secret_ssid_AP_1,secret_pass_AP_1);
   wifiMulti.addAP(secret_ssid_AP_2,secret_pass_AP_2);
   wifiMulti.addAP(secret_ssid_AP_3,secret_pass_AP_3);
+  wifiMulti.addAP(secret_ssid_AP_4,secret_pass_AP_4);
   
   // WiFi.scanNetworks will return the number of networks found
   int n = WiFi.scanNetworks();
