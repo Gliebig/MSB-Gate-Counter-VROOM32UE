@@ -103,9 +103,9 @@ bool mqtt_connected = false;
 bool wifi_connected = false;
 int wifi_connect_attempts = 5;
 
-#define MQTT_PUB_TOPIC1  "msb/gate/temp"
-#define MQTT_PUB_TOPIC2  "msb/gate/time"
-#define MQTT_PUB_TOPIC3  "msb/gate/carnumber"
+#define MQTT_PUB_TOPIC1  "msb/traffic/exit/temp"
+#define MQTT_PUB_TOPIC2  "msb/traffic/exit/time"
+#define MQTT_PUB_TOPIC3  "msb/traffic/exit/count"
 
 
 
@@ -132,7 +132,7 @@ unsigned long currentMillis; // Comparrison time holder
 unsigned long carDetectedMillis;  // Grab the ime when sensor 1st trips
 unsigned long wifi_connectionMillis;
 int detectorState;
-int previousdetectorState;
+int lastdetectorState;
 File myFile; //used to write files to SD Card
 File myFile2;
 
@@ -523,10 +523,11 @@ void loop() {
           // When Sensor is tripped, wait until sensor clears
           while (carPresent == 1) {
               detectorState = digitalRead(vehicleSensorPin);
-              if (digitalRead(vehicleSensorPin) != digitalRead(vehicleSensorPin)) {
+ //             if (digitalRead(vehicleSensorPin) != digitalRead(vehicleSensorPin)) {
+             if (lastdetectorState != detectorState & detectorState == LOW){
                   currentMillis = millis();
                   sensorBounces ++;
-                  Serial.print("Swtich Toggled ");
+                  Serial.print("Switch Toggled ");
                   Serial.print(digitalRead(vehicleSensorPin));
                   Serial.print(" detectorState = ");
                   Serial.println(detectorState);
@@ -588,6 +589,7 @@ void loop() {
                   }
                   carPresent = 0;
               }
+            lastdetectorState=detectorState;
             //previousMillis = currentMillis;
           }
          //  previousMillis = currentMillis;
