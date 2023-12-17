@@ -103,6 +103,7 @@ bool mqtt_connected = false;
 bool wifi_connected = false;
 int wifi_connect_attempts = 5;
 
+#define MQTT_PUB_TOPIC0  "msb/traffic/exit/hello"
 #define MQTT_PUB_TOPIC1  "msb/traffic/exit/temp"
 #define MQTT_PUB_TOPIC2  "msb/traffic/exit/time"
 #define MQTT_PUB_TOPIC3  "msb/traffic/exit/count"
@@ -130,6 +131,8 @@ unsigned long highMillis = 0; //Grab the time when the vehicle sensor is high
 unsigned long previousMillis; // Last time sendor pin changed state
 unsigned long currentMillis; // Comparrison time holder
 unsigned long carDetectedMillis;  // Grab the ime when sensor 1st trips
+unsigned long detectedStateMillis;
+unsigned long lastdetectedStateMillis;
 unsigned long wifi_connectionMillis;
 int detectorState;
 int lastdetectorState;
@@ -211,9 +214,9 @@ void reconnect() {
     if (mqtt_client.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
       Serial.println("connected!");
       // Once connected, publish an announcement…
-      mqtt_client.publish("testTopic", "Hello from Gate Counter!");
+      mqtt_client.publish(MQTT_PUB_TOPIC0, "Hello from Gate Counter!");
       // … and resubscribe
-      mqtt_client.subscribe("testTopic");
+      mqtt_client.subscribe(MQTT_PUB_TOPIC0);
       mqtt_connected = true;
     } else {
       Serial.print("failed, rc = ");
@@ -514,11 +517,12 @@ void loop() {
       if (detectorState == LOW) {
           carPresent = 1;
           carDetectedMillis = millis(); // Time car was detected
+          Serial.print("Millis when car detected = ");
           Serial.print(carDetectedMillis);
           Serial.print(" , Car Triggered Detector: ");
           Serial.print(detectorState);
           Serial.print(", total daily cars = ");         
-          Serial.println (totalDailyCars) ;    
+          Serial.println (totalDailyCars+1) ;    
           currentMillis = millis();
           sensorBounces = 0;
 
@@ -526,11 +530,15 @@ void loop() {
           while (carPresent == 1) {
               detectorState = digitalRead(vehicleSensorPin);
  //             if (digitalRead(vehicleSensorPin) != digitalRead(vehicleSensorPin)) {
-             if (lastdetectorState != detectorState & detectorState == LOW){
+             if ((lastdetectorState != detectorState) & (detectorState == LOW)){
                   currentMillis = millis();
+                  detectedStateMillis = millis();
                   sensorBounces ++;
-                  Serial.print("Switch Toggled ");
+                  Serial.print("Switch Toggled Time from car detected = ");
+                  Serial.print(detectedStateMillis-lastdetectedStateMillis);
                   Serial.print(digitalRead(vehicleSensorPin));
+                  Serial.print(" lastdetectorState = ");
+                  Serial.print(lastdetectorState);
                   Serial.print(" detectorState = ");
                   Serial.println(detectorState);
                   DateTime now = rtc.now();
@@ -541,9 +549,9 @@ void loop() {
                   if (myFile2) {
                       myFile2.print(now.toString(buf2));
                       myFile2.print(", "); 
-                      myFile2.print(millis()-carDetectedMillis);
+                      myFile2.print(detectedStateMillis-lastdetectedStateMillis);
                       myFile2.print(", "); 
-                      myFile2.print (totalDailyCars) ; 
+                      myFile2.print (totalDailyCars+1) ; //Prints car number being detected
                       myFile2.print(", ");
                       myFile2.println(sensorBounces);
                       myFile2.close();
@@ -577,7 +585,9 @@ void loop() {
                       myFile.println(temp);
                       myFile.close();
                       Serial.println(F(" = Total Daily Cars. CarLog Recorded SD Card."));
-                      if (mqtt_connected == true) {
+                      if (!mqtt_client.connected()) {
+                       reconnect();
+                      }
                         mqtt_client.publish(MQTT_PUB_TOPIC1, String(temp).c_str());
                         mqtt_client.publish(MQTT_PUB_TOPIC2, now.toString(buf2));
                         mqtt_client.publish(MQTT_PUB_TOPIC3, String(totalDailyCars).c_str());
@@ -585,13 +595,14 @@ void loop() {
                         //Serial.print("Publish message: ");
                         //Serial.println(msg);
                         //mqtt_client.publish("msbGateCount", msg);
-                      }
+                      //}
                   } else {
                       Serial.print(F("SD Card: Issue encountered while attempting to open the file GateCount.csv"));
                   }
                   carPresent = 0;
               }
             lastdetectorState=detectorState;
+            lastdetectedStateMillis=detectedStateMillis;
             //previousMillis = currentMillis;
           }
          //  previousMillis = currentMillis;
