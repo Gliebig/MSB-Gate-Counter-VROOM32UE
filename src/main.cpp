@@ -76,6 +76,10 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 
 //#include <DS3231.h>
 RTC_DS3231 rtc;
+int line1 =0;
+int line2 =9;
+int line3 = 20;
+int line4 = 35;
 
 //Create Multiple WIFI Object
 WiFiMulti wifiMulti;
@@ -99,9 +103,6 @@ char mqtt_server[] = mqtt_Server;
 char mqtt_username[] = mqtt_UserName;
 char mqtt_password[] = mqtt_Password;
 const int mqtt_port = mqtt_Port;
-bool mqtt_connected = false;
-bool wifi_connected = false;
-int wifi_connect_attempts = 5;
 
 #define MQTT_PUB_TOPIC0  "msb/traffic/exit/hello"
 #define MQTT_PUB_TOPIC1  "msb/traffic/exit/temp"
@@ -133,9 +134,19 @@ unsigned long currentMillis; // Comparrison time holder
 unsigned long carDetectedMillis;  // Grab the ime when sensor 1st trips
 unsigned long detectedStateMillis;
 unsigned long lastdetectedStateMillis;
-unsigned long wifi_connectionMillis;
+unsigned long wifi_lastReconnectAttemptMillis;
+unsigned long wifi_connectioncheckMillis = 5000; // check for connection every 5 sec
+unsigned long mqtt_lastReconnectAttemptMillis;
+unsigned long mqtt_connectionCheckMillis = 5000;
+unsigned long nowwifi;
+unsigned long nowmqtt;
+
+
 int detectorState;
 int lastdetectorState;
+
+
+
 File myFile; //used to write files to SD Card
 File myFile2;
 
@@ -149,23 +160,16 @@ void setup_wifi() {
     Serial.println("Connecting to WiFi");
     display.println("Connecting to WiFi..");
     display.display();
-    wifi_connectionMillis = millis()*5*connectTimeOutPerAP;
     while(wifiMulti.run(connectTimeOutPerAP) != WL_CONNECTED) {
       Serial.print(".");
-      if (millis() > wifi_connectionMillis){
-        wifi_connected = false;
-        return;
-      }
     }
-    wifi_connected = true;
-    randomSeed(micros());
     Serial.println("Connected to the WiFi network");
     display.clearDisplay();
     display.setTextColor(WHITE);
     display.setTextSize(1);
     display.display();
    // print the SSID of the network you're attached to:
-    display.setCursor(0, 0);
+    display.setCursor(0, line1);
     display.print("SSID: ");
     display.println(WiFi.SSID());
 
@@ -174,9 +178,9 @@ void setup_wifi() {
 
     // print your board's IP address:
     IPAddress ip = WiFi.localIP();
-    Serial.print("IP Address: ");
+    Serial.print("IP: ");
     Serial.println(ip);
-    display.setCursor(0, 10);
+    display.setCursor(0, line2);
     display.print("IP: ");
     display.println(ip);
 
@@ -185,12 +189,12 @@ void setup_wifi() {
     Serial.print("signal strength (RSSI):");
     Serial.print(rssi);
     Serial.println(" dBm");
-    display.setCursor(0, 20);
+    display.setCursor(0, line3);
     display.print("signal: ");
     display.print(rssi);
     display.println(" dBm");
     display.display();
-    delay(10000);
+    delay(5000);
 }
 
 
@@ -209,7 +213,7 @@ void reconnect() {
   // Loop until we’re reconnected
   while (!mqtt_client.connected()) {
     Serial.print("Attempting MQTT connection… ");
-    String clientId = "ESP32Client";
+    String clientId = "ESP32ClientGate";
     // Attempt to connect
     if (mqtt_client.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
       Serial.println("connected!");
@@ -217,14 +221,10 @@ void reconnect() {
       mqtt_client.publish(MQTT_PUB_TOPIC0, "Hello from Gate Counter!");
       // … and resubscribe
       mqtt_client.subscribe(MQTT_PUB_TOPIC0);
-      mqtt_connected = true;
     } else {
       Serial.print("failed, rc = ");
       Serial.print(mqtt_client.state());
       Serial.println(" try again in 5 seconds");
-      // Offline Mode
-      mqtt_connected = false;
-      return;
     }
   }
 }
@@ -339,7 +339,7 @@ void setup() {
     Serial.println(F("SensorBounces.csv doesn't exist on SD Card."));
   }
 
-  
+  WiFi.mode(WIFI_STA); 
   wifiMulti.addAP(secret_ssid_AP_1,secret_pass_AP_1);
   wifiMulti.addAP(secret_ssid_AP_2,secret_pass_AP_2);
   wifiMulti.addAP(secret_ssid_AP_3,secret_pass_AP_3);
@@ -407,11 +407,32 @@ void setup() {
 }
 
 void loop() {
+    // non-blocking WiFi and MQTT Connectivity Checks
     if (wifiMulti.run() == WL_CONNECTED) {
-      
+      // Check for MQTT connection only if wifi is connected
       if (!mqtt_client.connected()){
-        reconnect();
+        nowmqtt=millis();
+        if(nowmqtt - mqtt_lastReconnectAttemptMillis > mqtt_connectionCheckMillis){
+          mqtt_lastReconnectAttemptMillis = nowmqtt;
+          Serial.println("Attempting MQTT Connection");
+          reconnect();
+        }
+          mqtt_lastReconnectAttemptMillis =0;
+      } else {
+        //keep MQTT client connected when WiFi is connected
+        mqtt_client.loop();
       }
+    } else {
+        // Reconnect WiFi if lost, non blocking
+        nowwifi=millis();
+          if ((nowwifi - wifi_lastReconnectAttemptMillis) > wifi_connectioncheckMillis){
+            setup_wifi();
+          }
+        wifi_lastReconnectAttemptMillis = 0;
+    }
+
+
+
       DateTime now = rtc.now();
       temp=((rtc.getTemperature()*9/5)+32);
       //Reset Gate Counter at 5:00:00 pm
@@ -526,9 +547,10 @@ void loop() {
           currentMillis = millis();
           sensorBounces = 0;
 
-          // When Sensor is tripped, wait until sensor clears
+          // When Sensor is tripped, figure out when sensor remains HIGH
           while (carPresent == 1) {
               detectorState = digitalRead(vehicleSensorPin);
+ 
  //             if (digitalRead(vehicleSensorPin) != digitalRead(vehicleSensorPin)) {
              if ((lastdetectorState != detectorState) & (detectorState == LOW)){
                   currentMillis = millis();
@@ -559,6 +581,9 @@ void loop() {
                   } else {
                       Serial.print(F("SD Card: Issue encountered while attempting to open the file GateCount.csv"));
                   }
+                
+
+
               }
         
               if ((detectorState != LOW) && (millis()-currentMillis >= nocarMillis)) {
@@ -607,9 +632,4 @@ void loop() {
           }
          //  previousMillis = currentMillis;
       }
-	  } else {
-          Serial.println("WiFi not connected!");
-          Serial.print("Establishing a connection with a nearby Wi-Fi...");
-          setup_wifi();
-    }
 }
