@@ -34,6 +34,7 @@ D23 - MOSI
 
 #define vehicleSensorPin 4
 #define PIN_SPI_CS 5 // The ESP32 pin GPIO5
+#define MQTT_KEEPALIVE 30
 
 // HiveMQ Cloud Let's Encrypt CA certificate
 static const char *root_ca PROGMEM = R"EOF(
@@ -82,9 +83,11 @@ int line3 = 20;
 int line4 = 35;
 
 //Create Multiple WIFI Object
+
 WiFiMulti wifiMulti;
 WiFiClientSecure espGateCounter;
 PubSubClient mqtt_client(espGateCounter);
+
 unsigned long lastMsg = 0;
 #define MSG_BUFFER_SIZE (500)
 char msg[MSG_BUFFER_SIZE];
@@ -127,7 +130,7 @@ int carPresent = 0;
 int sensorBounces =0;
 unsigned long detectorMillis = 0;
 unsigned long debounceMillis = 12000; // Time required for my truck to pass totally
-unsigned long nocarMillis = 3500; // Time required for High Pin to stay high to reset car in detection zone
+unsigned long nocarMillis = 3000; // Time required for High Pin to stay high to reset car in detection zone
 unsigned long highMillis = 0; //Grab the time when the vehicle sensor is high
 unsigned long previousMillis; // Last time sendor pin changed state
 unsigned long currentMillis; // Comparrison time holder
@@ -536,8 +539,8 @@ void loop() {
 	    // Sensing Vehicle  
       // Detector LOW when vehicle sensed, Normally HIGH
       if (detectorState == LOW) {
-          carPresent = 1;
-          carDetectedMillis = millis(); // Time car was detected
+          carPresent = 1; // when detector senses car, set flag car is present.
+          carDetectedMillis = millis(); // Freeze time when car was detected 
           Serial.print("Millis when car detected = ");
           Serial.print(carDetectedMillis);
           Serial.print(" , Car Triggered Detector: ");
@@ -549,20 +552,23 @@ void loop() {
 
           // When Sensor is tripped, figure out when sensor remains HIGH
           while (carPresent == 1) {
-              detectorState = digitalRead(vehicleSensorPin);
- 
- //             if (digitalRead(vehicleSensorPin) != digitalRead(vehicleSensorPin)) {
+             detectorState = digitalRead(vehicleSensorPin);
              if ((lastdetectorState != detectorState) & (detectorState == LOW)){
-                  currentMillis = millis();
-                  detectedStateMillis = millis();
+                  detectedStateMillis = millis(); // set timer when pin goes low
                   sensorBounces ++;
                   Serial.print("Switch Toggled Time from car detected = ");
                   Serial.print(detectedStateMillis-lastdetectedStateMillis);
                   Serial.print(digitalRead(vehicleSensorPin));
-                  Serial.print(" lastdetectorState = ");
+                  Serial.print(" lastPinState = ");
                   Serial.print(lastdetectorState);
-                  Serial.print(" detectorState = ");
-                  Serial.println(detectorState);
+                  Serial.print(" ThisPinState = ");
+                  Serial.print(detectorState);
+                  Serial.print(" This Time = ");
+                  Serial.print(detectedStateMillis);
+                  Serial.print(" Last Time = ");
+                  Serial.print(lastdetectedStateMillis);
+                  Serial.print(" Diff = ");
+                  Serial.println(detectedStateMillis-lastdetectedStateMillis);
                   DateTime now = rtc.now();
                   char buf2[] = "YYYY-MM-DD hh:mm:ss";
                   Serial.print(now.toString(buf2));
@@ -581,12 +587,10 @@ void loop() {
                   } else {
                       Serial.print(F("SD Card: Issue encountered while attempting to open the file GateCount.csv"));
                   }
-                
 
-
-              }
-        
-              if ((detectorState != LOW) && (millis()-currentMillis >= nocarMillis)) {
+             
+             } else { 
+               if ((detectorState != LOW) && (millis()-lastdetectedStateMillis >= nocarMillis)) {
                   //previousMillis = millis()-currentMillis;
                   DateTime now = rtc.now();
                   char buf2[] = "YYYY-MM-DD hh:mm:ss";
@@ -610,9 +614,6 @@ void loop() {
                       myFile.println(temp);
                       myFile.close();
                       Serial.println(F(" = Total Daily Cars. CarLog Recorded SD Card."));
-                      if (!mqtt_client.connected()) {
-                       reconnect();
-                      }
                         mqtt_client.publish(MQTT_PUB_TOPIC1, String(temp).c_str());
                         mqtt_client.publish(MQTT_PUB_TOPIC2, now.toString(buf2));
                         mqtt_client.publish(MQTT_PUB_TOPIC3, String(totalDailyCars).c_str());
@@ -626,10 +627,9 @@ void loop() {
                   }
                   carPresent = 0;
               }
-            lastdetectorState=detectorState;
-            lastdetectedStateMillis=detectedStateMillis;
-            //previousMillis = currentMillis;
-          }
-         //  previousMillis = currentMillis;
-      }
+             }
+             lastdetectorState=detectorState;
+             lastdetectedStateMillis=detectedStateMillis;
+           }
+      }     
 }
