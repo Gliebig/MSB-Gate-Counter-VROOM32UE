@@ -444,23 +444,18 @@ void loop() {
          }
       display.clearDisplay();
       display.setTextSize(1);
-      display.setCursor(0, 0);
+      display.setCursor(0, line1);
       //  display Day of Week
-      display.println(days[now.dayOfTheWeek()]);
+      display.print(days[now.dayOfTheWeek()]);
 
       //  Display Date
-      display.setTextSize(1);
-      display.setCursor(23, 0);         
-      display.println(months[now.month(), DEC +1]);
-
-      display.setTextSize(1);
-      display.setCursor(50, 0);
-      display.println(now.day(), DEC);
-  
-      display.setTextSize(1);
-      display.setCursor(63, 0);
+      display.print(" ");         
+      display.print(months[now.month(), DEC +1]);
+      display.print(" ");
+      display.print(now.day(), DEC);
+      display.print(", ");
       display.println(now.year(), DEC);
-
+      
       // Convert 24 hour clock to 12 hours
       currentHour = now.hour();
 
