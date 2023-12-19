@@ -34,7 +34,7 @@ D23 - MOSI
 
 #define vehicleSensorPin 4
 #define PIN_SPI_CS 5 // The ESP32 pin GPIO5
-#define MQTT_KEEPALIVE 30
+#define MQTT_KEEPALIVE 60
 
 // HiveMQ Cloud Let's Encrypt CA certificate
 static const char *root_ca PROGMEM = R"EOF(
@@ -130,7 +130,7 @@ int carPresent = 0;
 int sensorBounces =0;
 unsigned long detectorMillis = 0;
 unsigned long debounceMillis = 12000; // Time required for my truck to pass totally
-unsigned long nocarMillis = 3000; // Time required for High Pin to stay high to reset car in detection zone
+unsigned long nocarMillis = 2000; // Time required for High Pin to stay high to reset car in detection zone
 unsigned long highMillis = 0; //Grab the time when the vehicle sensor is high
 unsigned long previousMillis; // Last time sendor pin changed state
 unsigned long currentMillis; // Comparrison time holder
@@ -312,9 +312,7 @@ void setup() {
     // create a new file by opening a new file and immediately close it
     myFile = SD.open("/GateCount.csv", FILE_WRITE);
     myFile.close();
-  }
-
-  // recheck if file is created or not & write Header
+      // recheck if file is created or not & write Header
   if (SD.exists("/GateCount.csv")){
     Serial.println(F("GateCount.csv exists on SD Card."));
     myFile = SD.open("/GateCount.csv", FILE_APPEND);
@@ -324,14 +322,15 @@ void setup() {
   }else{
     Serial.println(F("GateCount.csv doesn't exist on SD Card."));
   }
+  }
+
+
   if (!SD.exists("/SensorBounces.csv")) {
     Serial.println(F("SensorBounces.csv doesn't exist. Creating SensorBounces.csv file..."));
     // create a new file by opening a new file and immediately close it
     myFile2 = SD.open("/SensorBounces.csv", FILE_WRITE);
     myFile2.close();
-  }
-
-  // recheck if file is created or not & write Header
+   // recheck if file is created or not & write Header
   if (SD.exists("/SensorBounces.csv")){
     Serial.println(F("SensorBounces.csv exists on SD Card."));
     myFile2 = SD.open("/SensorBounces.csv", FILE_APPEND);
@@ -341,6 +340,10 @@ void setup() {
   }else{
     Serial.println(F("SensorBounces.csv doesn't exist on SD Card."));
   }
+ 
+  }
+
+
 
   WiFi.mode(WIFI_STA); 
   wifiMulti.addAP(secret_ssid_AP_1,secret_pass_AP_1);
@@ -564,6 +567,7 @@ void loop() {
                   Serial.print(lastdetectedStateMillis);
                   Serial.print(" Diff = ");
                   Serial.println(detectedStateMillis-lastdetectedStateMillis);
+             lastdetectedStateMillis=detectedStateMillis;
                   DateTime now = rtc.now();
                   char buf2[] = "YYYY-MM-DD hh:mm:ss";
                   Serial.print(now.toString(buf2));
@@ -624,7 +628,7 @@ void loop() {
               }
              }
              lastdetectorState=detectorState;
-             lastdetectedStateMillis=detectedStateMillis;
+
            }
       }     
 }
