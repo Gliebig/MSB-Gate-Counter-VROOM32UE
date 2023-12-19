@@ -130,7 +130,7 @@ int carPresent = 0;
 int sensorBounces =0;
 unsigned long detectorMillis = 0;
 unsigned long debounceMillis = 12000; // Time required for my truck to pass totally
-unsigned long nocarMillis = 3000; // Time required for High Pin to stay high to reset car in detection zone
+unsigned long nocarMillis = 1500; // Time required for High Pin to stay high to reset car in detection zone
 unsigned long highMillis = 0; //Grab the time when the vehicle sensor is high
 unsigned long previousMillis; // Last time sendor pin changed state
 unsigned long currentMillis; // Comparrison time holder
