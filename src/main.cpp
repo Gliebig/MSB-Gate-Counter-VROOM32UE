@@ -129,9 +129,10 @@ int totalDailyCars = 0;
 int carPresent = 0;
 int sensorBounces =0;
 unsigned long detectorMillis = 0;
-unsigned long debounceMillis = 12000; // Time required for my truck to pass totally
-unsigned long nocarMillis = 2000; // Time required for High Pin to stay high to reset car in detection zone
-unsigned long highMillis = 0; //Grab the time when the vehicle sensor is high
+//unsigned long debounceMillis = 12000; // Time required for my truck to pass totally
+unsigned long carpassingMillis = 2000; // Time delay to allow car to pass before checking for HIGN pin
+unsigned long nocarMillis = 500; // Time required for High Pin to stay high to reset car in detection zone
+//unsigned long highMillis = 0; //Grab the time when the vehicle sensor is high
 unsigned long previousMillis; // Last time sendor pin changed state
 unsigned long currentMillis; // Comparrison time holder
 unsigned long carDetectedMillis;  // Grab the ime when sensor 1st trips
@@ -543,7 +544,7 @@ void loop() {
           Serial.print(carDetectedMillis);
           Serial.print(" , Car Triggered Detector: ");
           Serial.print(detectorState);
-          Serial.print(", total daily cars = ");         
+          Serial.print(", Car Number = ");         
           Serial.println (totalDailyCars+1) ;    
           currentMillis = millis();
           sensorBounces = 0;
@@ -551,7 +552,46 @@ void loop() {
           // When Sensor is tripped, figure out when sensor remains HIGH
           while (carPresent == 1) {
              detectorState = digitalRead(vehicleSensorPin);
-             if ((lastdetectorState != detectorState) & (detectorState == LOW)){
+             currentMillis = millis();
+             if (((currentMillis - carDetectedMillis)>carpassingMillis) & (detectorState == HIGH)) {
+                //Car has passed and count car
+                  DateTime now = rtc.now();
+                  char buf2[] = "YYYY-MM-DD hh:mm:ss";
+                  Serial.print(now.toString(buf2));
+                  Serial.print(", Temp = ");
+                  Serial.print(temp);
+                  Serial.print(", ");
+                  //Serial.print(String("DateTime::TIMESTAMP_FULL:\t")+now.timestamp(DateTime::TIMESTAMP_FULL));
+                  //Serial.print(",1,"); 
+                  totalDailyCars ++;     
+                  Serial.print(totalDailyCars) ;  
+                  // open file for writing Car Data
+                  myFile = SD.open("/GateCount.csv", FILE_APPEND);
+                  if (myFile) {
+                      myFile.print(now.toString(buf2));
+                      myFile.print(", ");
+                      myFile.print (millis()-carDetectedMillis) ; 
+                      myFile.print(", 1 , "); 
+                      myFile.print (totalDailyCars) ; 
+                      myFile.print(", ");
+                      myFile.println(temp);
+                      myFile.close();
+                      Serial.println(F(" = Total Daily Cars. CarLog Recorded SD Card."));
+                        mqtt_client.publish(MQTT_PUB_TOPIC1, String(temp).c_str());
+                        mqtt_client.publish(MQTT_PUB_TOPIC2, now.toString(buf2));
+                        mqtt_client.publish(MQTT_PUB_TOPIC3, String(totalDailyCars).c_str());
+                        //snprintf (msg, MSG_BUFFER_SIZE, "Car #%ld,", totalDailyCars);
+                        //Serial.print("Publish message: ");
+                        //Serial.println(msg);
+                        //mqtt_client.publish("msbGateCount", msg);
+                      //}
+                  } else {
+                      Serial.print(F("SD Card: Issue encountered while attempting to open the file GateCount.csv"));
+                  }
+                  carPresent = 0;
+              }
+
+/*
                   detectedStateMillis = millis(); // set timer when pin goes low
                   sensorBounces ++;
                   Serial.print("Switch Toggled Time from car detected = ");
@@ -591,44 +631,12 @@ void loop() {
              } else { 
                if ((detectorState != LOW) && (millis()-lastdetectedStateMillis >= nocarMillis)) {
                   //previousMillis = millis()-currentMillis;
-                  DateTime now = rtc.now();
-                  char buf2[] = "YYYY-MM-DD hh:mm:ss";
-                  Serial.print(now.toString(buf2));
-                  Serial.print(", Temp = ");
-                  Serial.print(temp);
-                  Serial.print(", ");
-                  //Serial.print(String("DateTime::TIMESTAMP_FULL:\t")+now.timestamp(DateTime::TIMESTAMP_FULL));
-                  //Serial.print(",1,"); 
-                  totalDailyCars ++;     
-                  Serial.print(totalDailyCars) ;  
-                  // open file for writing Car Data
-                  myFile = SD.open("/GateCount.csv", FILE_APPEND);
-                  if (myFile) {
-                      myFile.print(now.toString(buf2));
-                      myFile.print(", ");
-                      myFile.print (millis()-carDetectedMillis) ; 
-                      myFile.print(", 1 , "); 
-                      myFile.print (totalDailyCars) ; 
-                      myFile.print(", ");
-                      myFile.println(temp);
-                      myFile.close();
-                      Serial.println(F(" = Total Daily Cars. CarLog Recorded SD Card."));
-                        mqtt_client.publish(MQTT_PUB_TOPIC1, String(temp).c_str());
-                        mqtt_client.publish(MQTT_PUB_TOPIC2, now.toString(buf2));
-                        mqtt_client.publish(MQTT_PUB_TOPIC3, String(totalDailyCars).c_str());
-                        //snprintf (msg, MSG_BUFFER_SIZE, "Car #%ld,", totalDailyCars);
-                        //Serial.print("Publish message: ");
-                        //Serial.println(msg);
-                        //mqtt_client.publish("msbGateCount", msg);
-                      //}
-                  } else {
-                      Serial.print(F("SD Card: Issue encountered while attempting to open the file GateCount.csv"));
-                  }
-                  carPresent = 0;
-              }
+
              }
              lastdetectorState=detectorState;
-
+*/
            }
+
+                  lastdetectedStateMillis=currentMillis;
       }     
 }
