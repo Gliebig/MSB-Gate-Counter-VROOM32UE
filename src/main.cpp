@@ -34,7 +34,7 @@ D23 - MOSI
 
 #define vehicleSensorPin 4
 #define PIN_SPI_CS 5 // The ESP32 pin GPIO5
-#define MQTT_KEEPALIVE 60
+#define MQTT_KEEPALIVE 30
 
 // HiveMQ Cloud Let's Encrypt CA certificate
 static const char *root_ca PROGMEM = R"EOF(
@@ -80,7 +80,10 @@ RTC_DS3231 rtc;
 int line1 =0;
 int line2 =9;
 int line3 = 20;
-int line4 = 35;
+int line4 = 30;
+int line5 = 42;
+int line6 = 50;
+int line7 = 53;
 
 //Create Multiple WIFI Object
 
@@ -102,6 +105,7 @@ const int mqtt_port = mqtt_Port;
 #define MQTT_PUB_TOPIC1  "msb/traffic/exit/temp"
 #define MQTT_PUB_TOPIC2  "msb/traffic/exit/time"
 #define MQTT_PUB_TOPIC3  "msb/traffic/exit/count"
+#define MQTT_PUB_TOPIC4  "msb/traffic/exit/inpark"
 
 #define MQTT_SUB_TOPIC0  "msb/traffic/enter/count"
 
@@ -119,11 +123,12 @@ int currentDay = 0;
 int currentHour = 0;
 int currentMin = 0;
 int totalDailyCars = 0;
+int carCounterCars =0;
 int carPresent = 0;
 int sensorBounces =0;
 unsigned long detectorMillis = 0;
 //unsigned long debounceMillis = 12000; // Time required for my truck to pass totally
-unsigned long carpassingMillis = 2000; // Time delay to allow car to pass before checking for HIGN pin
+unsigned long carpassingMillis = 3000; // Time delay to allow car to pass before checking for HIGN pin
 unsigned long nocarMillis = 500; // Time required for High Pin to stay high to reset car in detection zone
 //unsigned long highMillis = 0; //Grab the time when the vehicle sensor is high
 unsigned long previousMillis; // Last time sendor pin changed state
@@ -151,7 +156,7 @@ char days[7][4] = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
 char months[12][4] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
 
-Adafruit_SSD1306 display = Adafruit_SSD1306(128, 32, &Wire, -1);
+Adafruit_SSD1306 display = Adafruit_SSD1306(128, 64, &Wire, -1);
 
 void setup_wifi() {
     Serial.println("Connecting to WiFi");
@@ -202,6 +207,9 @@ void callback(char* topic, byte* payload, unsigned int length) {
   for (int i = 0; i < length; i++) {
     Serial.print((char)payload[i]);
   }
+  payload[length] = '\0';
+  carCounterCars = atoi((char *)payload);
+//  Serial.println(carCountCars);
   Serial.println();
 }
 
@@ -210,23 +218,23 @@ void reconnect() {
   // Loop until we’re reconnected
   while (!mqtt_client.connected()) {
     Serial.print("Attempting MQTT connection… ");
-    String clientId = "ESP32ClientGate";
+    String clientId = "espGateCounter";
     // Attempt to connect
     if (mqtt_client.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
       Serial.println("connected!");
+      Serial.println("Waiting for Car");
       // Once connected, publish an announcement…
       mqtt_client.publish(MQTT_PUB_TOPIC0, "Hello from Gate Counter!");
       // … and resubscribe
-      mqtt_client.subscribe(MQTT_SUB_TOPIC0);
+      mqtt_client.subscribe(MQTT_PUB_TOPIC0);
     } else {
       Serial.print("failed, rc = ");
       Serial.print(mqtt_client.state());
       Serial.println(" try again in 5 seconds");
     }
   }
+  mqtt_client.subscribe(MQTT_SUB_TOPIC0);
 }
-
-
 
 void SetLocalTime() {
   struct tm timeinfo;
@@ -286,9 +294,9 @@ void setup() {
     Serial.println(F("SD CARD FAILED, OR NOT PRESENT!"));
     while (1); // stop the program
     display.clearDisplay();
-    display.setTextSize(1);
+    display.setTextSize(2);
     display.setTextColor(WHITE);
-    display.setCursor(0,0);
+    display.setCursor(0,line1);
     display.println("Check SD Card");
     display.display();
   }
@@ -297,7 +305,7 @@ void setup() {
     display.clearDisplay();
     display.setTextSize(1);
     display.setTextColor(WHITE);
-    display.setCursor(0,0);
+    display.setCursor(0,line1);
     display.println("SD Card Ready");
     display.display();
  
@@ -310,7 +318,7 @@ void setup() {
   if (SD.exists("/GateCount.csv")){
     Serial.println(F("GateCount.csv exists on SD Card."));
     myFile = SD.open("/GateCount.csv", FILE_APPEND);
-    myFile.println("Date Time,Millis,Car,TotalDailyCars,Temp");
+    myFile.println("Date Time,Millis,TotalExitCars,InPark,Temp");
     myFile.close();
     Serial.println(F("Header Written to GateCount.csv"));
   }else{
@@ -377,9 +385,9 @@ void setup() {
   if (! rtc.begin()) {
     Serial.println("Could not find RTC! Check circuit.");
     display.clearDisplay();
-    display.setTextSize(1);
+    display.setTextSize(2);
     display.setTextColor(WHITE);
-    display.setCursor(0,0);
+    display.setCursor(0,line1);
     display.println("Clock DEAD");
     display.display();
     while (1);
@@ -395,8 +403,8 @@ void setup() {
   display.clearDisplay();
   display.setTextColor(WHITE);
   display.setTextSize(2);
-  display.setCursor(0, 15);
-  display.print("GATE Counter");
+  display.setCursor(0, line4);
+  display.print("GATE Count");
 
   Serial.println  ("Initializing Gate Counter");
     Serial.print("Temperature: ");
@@ -433,7 +441,7 @@ void loop() {
     }
 
 
-
+      
       DateTime now = rtc.now();
       temp=((rtc.getTemperature()*9/5)+32);
       //Reset Gate Counter at 5:00:00 pm
@@ -470,58 +478,68 @@ void loop() {
       display.setTextSize(1);
 
       if (currentHour < 10){
-        display.setCursor(0, 10);
+        display.setCursor(0, line2);
         display.print("0");
         display.println(currentHour, DEC);
       }else{
-        display.setCursor(0, 10);
+        display.setCursor(0, line2);
         display.println(currentHour, DEC);
       }
 
-      display.setCursor(14, 10);
+      display.setCursor(14, line2);
       display.println(":");
  
       //Add leading 0 To Mintes & display Minutes 
       //  display.setTextSize(1);
       if (now.minute() < 10) {
-        display.setCursor(20, 10);
+        display.setCursor(20, line2);
         display.print("0");
         display.println(now.minute(), DEC);
       }else{
-        display.setCursor(21, 10);
+        display.setCursor(21, line2);
         display.println(now.minute(), DEC);
       }
 
-      display.setCursor(34, 10);
+      display.setCursor(34, line2);
       display.println(":");
 
       //Add leading 0 To Seconds & display Seconds
       //  display.setTextSize(1);
       if (now.second() < 10){
-        display.setCursor(41, 10);
+        display.setCursor(41, line2);
         display.print("0");
         display.println(now.second(), DEC);
       }else{
-        display.setCursor(41, 10);
+        display.setCursor(41, line2);
         display.println(now.second(), DEC);   
       }
 
       // Display AM-PM
-      display.setCursor(56, 10);
+      display.setCursor(56, line2);
       display.println(ampm); 
 
       // Display Temp
       // display.setTextSize(1);
-      display.setCursor(73, 10);
+      display.setCursor(73, line2);
       display.print("Temp: " );
       //display.setCursor(70, 10);
       display.println(temp, 0);
 
       // Display Gate Count
-      //  display.setTextSize(1);
-      display.setCursor(0, 20);
-      display.print("Gate Count: ");
+      display.setTextSize(1);
+      display.setCursor(0, line3);
+      display.print("Exiting: ");
+      display.setTextSize(2); 
+      
+      display.setCursor(50, line3);           
       display.println(totalDailyCars);
+      display.setTextSize(1);
+      display.setCursor(0, line5);
+      display.print("In Park: ");
+      display.setTextSize(2); 
+      display.setCursor(50, line5);
+      display.println(carCounterCars-totalDailyCars);
+
 
       display.display();
 
@@ -533,14 +551,14 @@ void loop() {
       if (detectorState == LOW) {
           carPresent = 1; // when detector senses car, set flag car is present.
           carDetectedMillis = millis(); // Freeze time when car was detected 
-          Serial.print("Millis when car detected = ");
-          Serial.print(carDetectedMillis);
-          Serial.print(" , Car Triggered Detector: ");
+//          Serial.print("Millis when car detected = ");
+//          Serial.print(carDetectedMillis);
+          Serial.print("Car Triggered Detector: ");
           Serial.print(detectorState);
           Serial.print(", Car Number = ");         
           Serial.println (totalDailyCars+1) ;    
-          currentMillis = millis();
-          sensorBounces = 0;
+//          currentMillis = millis();
+//          sensorBounces = 0;
 
           // When Sensor is tripped, figure out when sensor remains HIGH
           while (carPresent == 1) {
@@ -548,13 +566,13 @@ void loop() {
              currentMillis = millis();
              //Ignore Bounces and wait for sensor to return HIGH
              if (((currentMillis - carDetectedMillis)>carpassingMillis) & (detectorState == HIGH)) {
-                  //Car has passed and count car
+                  //Car has passed and count car May need to add a check to make sure detector state remains high for a period of time 12/20/23
                   DateTime now = rtc.now();
                   char buf2[] = "YYYY-MM-DD hh:mm:ss";
                   Serial.print(now.toString(buf2));
-                  Serial.print(", Temp = ");
-                  Serial.print(temp);
-                  Serial.print(", ");
+                  Serial.print(", Millis to pass = ");
+                  Serial.println(currentMillis-carDetectedMillis);
+//                  Serial.print(", ");
                   //Serial.print(String("DateTime::TIMESTAMP_FULL:\t")+now.timestamp(DateTime::TIMESTAMP_FULL));
                   //Serial.print(",1,"); 
                   totalDailyCars ++;     
@@ -565,17 +583,22 @@ void loop() {
                       myFile.print(now.toString(buf2));
                       myFile.print(", ");
                       myFile.print (currentMillis-carDetectedMillis) ; 
-                      myFile.print(", 1 , "); 
+                      myFile.print(", "); 
                       myFile.print (totalDailyCars) ; 
+                      myFile.print(", ");
+                      myFile.print(carCounterCars-totalDailyCars);
                       myFile.print(", ");
                       myFile.println(temp);
                       myFile.close();
                       
                       Serial.print(F("Car Saved to SD Card. Car Number = "));
-                      Serial.println(totalDailyCars) ;  
+                      Serial.print(totalDailyCars);
+                      Serial.print(F(" Cars in Park = "));
+                      Serial.println(carCounterCars-totalDailyCars);  
                         mqtt_client.publish(MQTT_PUB_TOPIC1, String(temp).c_str());
                         mqtt_client.publish(MQTT_PUB_TOPIC2, now.toString(buf2));
                         mqtt_client.publish(MQTT_PUB_TOPIC3, String(totalDailyCars).c_str());
+                        mqtt_client.publish(MQTT_PUB_TOPIC4, String(carCounterCars-totalDailyCars).c_str());
                         //snprintf (msg, MSG_BUFFER_SIZE, "Car #%ld,", totalDailyCars);
                         //Serial.print("Publish message: ");
                         //Serial.println(msg);
