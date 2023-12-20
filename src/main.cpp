@@ -93,15 +93,6 @@ unsigned long lastMsg = 0;
 char msg[MSG_BUFFER_SIZE];
 int value = 0;
 
-/*
-char ssidA[] = secret_ssid_AP_1;
-char passA[] = secret_pass_AP_1;
-char ssidB[] = secret_ssid_AP_2;
-char passB[] = secret_pass_AP_2;
-char ssidC[] = secret_ssid_AP_3;
-char passC[] = secret_pass_AP_3;
-*/
-
 char mqtt_server[] = mqtt_Server;
 char mqtt_username[] = mqtt_UserName;
 char mqtt_password[] = mqtt_Password;
@@ -111,6 +102,8 @@ const int mqtt_port = mqtt_Port;
 #define MQTT_PUB_TOPIC1  "msb/traffic/exit/temp"
 #define MQTT_PUB_TOPIC2  "msb/traffic/exit/time"
 #define MQTT_PUB_TOPIC3  "msb/traffic/exit/count"
+
+#define MQTT_SUB_TOPIC0  "msb/traffic/enter/count"
 
 
 
@@ -224,7 +217,7 @@ void reconnect() {
       // Once connected, publish an announcement…
       mqtt_client.publish(MQTT_PUB_TOPIC0, "Hello from Gate Counter!");
       // … and resubscribe
-      mqtt_client.subscribe(MQTT_PUB_TOPIC0);
+      mqtt_client.subscribe(MQTT_SUB_TOPIC0);
     } else {
       Serial.print("failed, rc = ");
       Serial.print(mqtt_client.state());
