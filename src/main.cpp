@@ -351,6 +351,7 @@ void setup() {
   wifiMulti.addAP(secret_ssid_AP_2,secret_pass_AP_2);
   wifiMulti.addAP(secret_ssid_AP_3,secret_pass_AP_3);
   wifiMulti.addAP(secret_ssid_AP_4,secret_pass_AP_4);
+  wifiMulti.addAP(secret_ssid_AP_5,secret_pass_AP_5);
   
   // WiFi.scanNetworks will return the number of networks found
   int n = WiFi.scanNetworks();
@@ -533,7 +534,6 @@ void loop() {
 
       // Count Cars Exiting
       detectorState = digitalRead(vehicleSensorPin);
-	    currentMillis = millis(); // grab current time
 
 	    // Sensing Vehicle  
       // Detector LOW when vehicle sensed, Normally HIGH
@@ -553,8 +553,9 @@ void loop() {
           while (carPresent == 1) {
              detectorState = digitalRead(vehicleSensorPin);
              currentMillis = millis();
+             //Ignore Bounces and wait for sensor to return HIGH
              if (((currentMillis - carDetectedMillis)>carpassingMillis) & (detectorState == HIGH)) {
-                //Car has passed and count car
+                  //Car has passed and count car
                   DateTime now = rtc.now();
                   char buf2[] = "YYYY-MM-DD hh:mm:ss";
                   Serial.print(now.toString(buf2));
@@ -564,19 +565,21 @@ void loop() {
                   //Serial.print(String("DateTime::TIMESTAMP_FULL:\t")+now.timestamp(DateTime::TIMESTAMP_FULL));
                   //Serial.print(",1,"); 
                   totalDailyCars ++;     
-                  Serial.print(totalDailyCars) ;  
+
                   // open file for writing Car Data
                   myFile = SD.open("/GateCount.csv", FILE_APPEND);
                   if (myFile) {
                       myFile.print(now.toString(buf2));
                       myFile.print(", ");
-                      myFile.print (millis()-carDetectedMillis) ; 
+                      myFile.print (currentMillis-carDetectedMillis) ; 
                       myFile.print(", 1 , "); 
                       myFile.print (totalDailyCars) ; 
                       myFile.print(", ");
                       myFile.println(temp);
                       myFile.close();
-                      Serial.println(F(" = Total Daily Cars. CarLog Recorded SD Card."));
+                      
+                      Serial.print(F("Car Saved to SD Card. Car Number = "));
+                      Serial.println(totalDailyCars) ;  
                         mqtt_client.publish(MQTT_PUB_TOPIC1, String(temp).c_str());
                         mqtt_client.publish(MQTT_PUB_TOPIC2, now.toString(buf2));
                         mqtt_client.publish(MQTT_PUB_TOPIC3, String(totalDailyCars).c_str());
