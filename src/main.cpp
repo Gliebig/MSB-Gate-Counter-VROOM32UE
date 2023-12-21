@@ -119,6 +119,8 @@ const long  gmtOffset_sec = -21600;
 const int   daylightOffset_sec = 3600;
 int16_t temp;
 
+char buf2[25] = "YYYY-MM-DD hh:mm:ss";
+
 int currentDay = 0;
 int currentHour = 0;
 int currentMin = 0;
@@ -127,7 +129,7 @@ int carCounterCars =0;
 bool carPresentFlag = 0;
 
 bool nocarTimerFlag = 0;
-unsigned long nocarTimerMills =0;
+unsigned long nocarTimerMillis =0;
 
 unsigned long whileMillis; // used for debugging
 unsigned long lastwhileMillis = 0;
@@ -352,7 +354,7 @@ void setup() {
   if (SD.exists("/SensorBounces.csv")){
     Serial.println(F("SensorBounces.csv exists on SD Card."));
     myFile2 = SD.open("/SensorBounces.csv", FILE_APPEND);
-    myFile2.println("Date Time,Millis,CarNum,sensorBounces");
+    myFile2.println("Time,Time High,Last High,Diff,NoCar Timer,CurentState,Last State,Car Number Counted");
     myFile2.close();
     Serial.println(F("Header Written to SensorBounces.csv"));
   }else{
@@ -572,7 +574,7 @@ void loop() {
           Serial.print(carDetectedMillis);
           Serial.print(", Car Number Being Counted = ");         
           Serial.println (totalDailyCars+1) ;  
-          Serial.println("Time High\tLast High\tDiff\tNoCarTime\tCurentState\tLast State" );  
+          Serial.println("Time\t\t\tTime High\tLast High\tDiff\tNoCar Timer\tCurentState\tLast State\tCar Number Counted" );  
 //          currentMillis = millis();
 //          sensorBounces = 0;
 
@@ -582,39 +584,76 @@ void loop() {
              currentMillis = millis();
         
                        if ((detectorState != lastdetectorState)  && (detectorState==HIGH)) {
+                          DateTime now = rtc.now();
+                          char buf2[] = "YYYY-MM-DD hh:mm:ss";
+                          
+                          
                           //start a timer when no car is detected
                           whileMillis=currentMillis-carDetectedMillis;
                           nocarTimerFlag = 1;  // change state to active
+                          Serial.print(now.toString(buf2));
+                          Serial.print(" \t\t ");
                           Serial.print(currentMillis-carDetectedMillis);
                           Serial.print(" \t\t ");
                           Serial.print(lastwhileMillis);
                           Serial.print(" \t\t ");   
                           Serial.print(whileMillis-lastwhileMillis);
                           Serial.print(" \t\t ");   
-                          Serial.print(millis()-nocarTimerMills);
+                          Serial.print(currentMillis-nocarTimerMillis);
                           Serial.print(" \t\t ");              
                           Serial.print(detectorState);
                           Serial.print(" \t\t ");
                           Serial.print(lastdetectorState);
+                          Serial.print(" \t\t ");
+                          Serial.print(totalDailyCars+1);
                           Serial.println();
+                         
+                         //Time\tTime High\tLast High\tDiff\tNoCar Timer\tCurentState\tLast State\tCar Number Counted
+                          myFile2 = SD.open("/SensorBounces.csv", FILE_APPEND);
+                          if (myFile2) {
+                              myFile2.print(now.toString(buf2));
+                              myFile2.print(", "); 
+                              myFile2.print(currentMillis-carDetectedMillis);
+                              myFile2.print(", "); 
+                              myFile2.print (lastwhileMillis) ; //Prints car number being detected
+                              myFile2.print(", ");
+                              myFile2.print(whileMillis-lastwhileMillis);
+                              myFile2.print(", ");
+                              myFile2.print(currentMillis-nocarTimerMillis);
+                              myFile2.print(" , ");              
+                              myFile2.print(detectorState);
+                              myFile2.print(" , ");
+                              myFile2.print(lastdetectorState);
+                              myFile2.print(" , ");
+                              myFile2.print(totalDailyCars+1);
+                              myFile2.println();
+                              myFile2.close();
+                              //Serial.println(F(" Bounce Log Recorded SD Card."));
+                          } else {
+                              Serial.print(F("SD Card: Issue encountered while attempting to open the file GateCount.csv"));
+                          }
+                       
+                       
+                       
+                       
                        } 
                       // Check added 12/21/23 to ensure no car is present for x millis
                       if (detectorState==HIGH)  {
                         // If no car is present and state does not change, then car has passed
-                        if ((currentMillis - nocarTimerMills) >= nocarTimeoutMillis)  { 
+                        if ((currentMillis - nocarTimerMillis) >= nocarTimeoutMillis)  { 
                           nocarTimerFlag = 0;
                         } 
                         } else {
-                          nocarTimerMills = millis();   // Start or Reset Timer when pin goes high
+                          nocarTimerMillis = millis();   // Start or Reset Timer when pin goes high
                       }
                       
              //allow enough time for 2nd axel to clear sensor and then make sure sensor remains high 12/23/23
              if (((currentMillis - carDetectedMillis)>=carpassingTimoutMillis) && (detectorState == HIGH) && (nocarTimerFlag ==0)) {
                   DateTime now = rtc.now();
-                  char buf2[] = "YYYY-MM-DD hh:mm:ss";
+                  //char buf2[] = "YYYY-MM-DD hh:mm:ss";
                   Serial.print(now.toString(buf2));
                   Serial.print(", Millis NoCarTimer = ");
-                  Serial.print(millis()-nocarTimerMills);
+                  Serial.print(currentMillis-nocarTimerMillis);
                   Serial.print(", Total Millis to pass = ");
                   Serial.println(currentMillis-carDetectedMillis);
                   //Serial.print(", ");
@@ -630,7 +669,7 @@ void loop() {
                       myFile.print(", ");
                       myFile.print (currentMillis-carDetectedMillis) ; 
                        myFile.print(", ");
-                      myFile.print (currentMillis-nocarTimeoutMillis) ; 
+                      myFile.print (currentMillis-nocarTimerMillis) ; 
                       myFile.print(", "); 
                       myFile.print (totalDailyCars) ; 
                       myFile.print(", ");
