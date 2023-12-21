@@ -108,7 +108,7 @@ const int mqtt_port = mqtt_Port;
 #define MQTT_PUB_TOPIC4  "msb/traffic/exit/inpark"
 
 #define MQTT_SUB_TOPIC0  "msb/traffic/enter/count"
-
+#define MQTT_SUB_TOPIC1  "msb/traffic/exit/resetcount"
 
 
 //const uint32_t connectTimeoutMs = 10000;
@@ -214,8 +214,17 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.print((char)payload[i]);
   }
   payload[length] = '\0';
-  carCounterCars = atoi((char *)payload);
-//  Serial.println(carCountCars);
+ 
+  if (strcmp(topic, MQTT_SUB_TOPIC0) == 0) {
+     carCounterCars = atoi((char *)payload);
+//     Serial.println(" Car Counter Updated");
+    }
+  
+  if (strcmp(topic, MQTT_SUB_TOPIC1) == 0){
+    totalDailyCars = atoi((char *)payload);
+//    Serial.println(" Gate Counter Updated");
+  }
+  //  Serial.println(carCountCars);
   Serial.println();
 }
 
@@ -224,7 +233,7 @@ void reconnect() {
   // Loop until we’re reconnected
   while (!mqtt_client.connected()) {
     Serial.print("Attempting MQTT connection… ");
-    String clientId = "espGateCounter";
+    String clientId = "espGateCounterEX";
     // Attempt to connect
     if (mqtt_client.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
       Serial.println("connected!");
@@ -240,6 +249,7 @@ void reconnect() {
     }
   }
   mqtt_client.subscribe(MQTT_SUB_TOPIC0);
+  mqtt_client.subscribe(MQTT_SUB_TOPIC1);
 }
 
 void SetLocalTime() {
