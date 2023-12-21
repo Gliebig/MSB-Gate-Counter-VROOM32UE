@@ -224,7 +224,7 @@ void reconnect() {
   // Loop until we’re reconnected
   while (!mqtt_client.connected()) {
     Serial.print("Attempting MQTT connection… ");
-    String clientId = "espGateCounterEx";
+    String clientId = "espGateCounter";
     // Attempt to connect
     if (mqtt_client.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
       Serial.println("connected!");
