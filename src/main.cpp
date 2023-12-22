@@ -134,7 +134,7 @@ unsigned long nocarTimerMillis =0;
 unsigned long whileMillis; // used for debugging
 unsigned long lastwhileMillis = 0;
 
-unsigned long nocarTimeoutMillis = 1000; // Time required for High Pin to stay high to reset car in detection zone
+unsigned long nocarTimeoutMillis = 1500; // Time required for High Pin to stay high to reset car in detection zone
 unsigned long carpassingTimoutMillis = 3000; // Time delay to allow car to pass before checking for HIGN pin
 
 //unsigned long highMillis = 0; //Grab the time when the vehicle sensor is high
@@ -650,7 +650,7 @@ void loop() {
              //allow enough time for 2nd axel to clear sensor and then make sure sensor remains high 12/23/23
              if (((currentMillis - carDetectedMillis)>=carpassingTimoutMillis) && (detectorState == HIGH) && (nocarTimerFlag ==0)) {
                   DateTime now = rtc.now();
-                  //char buf2[] = "YYYY-MM-DD hh:mm:ss";
+                  char buf2[] = "YYYY-MM-DD hh:mm:ss";
                   Serial.print(now.toString(buf2));
                   Serial.print(", Millis NoCarTimer = ");
                   Serial.print(currentMillis-nocarTimerMillis);
