@@ -31,6 +31,9 @@ D23 - MOSI
 //#include "FS.h"
 #include "SD.h"
 #include "SPI.h"
+#include <AsyncTCP.h>
+#include <WebServer.h>
+#include <ElegantOTA.h>
 
 #define vehicleSensorPin 4
 #define PIN_SPI_CS 5 // The ESP32 pin GPIO5
@@ -71,8 +74,8 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 -----END CERTIFICATE-----
 )EOF";
 
-
-
+//Setup Webserver Object
+WebServer server(80);
 
 
 //#include <DS3231.h>
@@ -101,7 +104,7 @@ char mqtt_username[] = mqtt_UserName;
 char mqtt_password[] = mqtt_Password;
 const int mqtt_port = mqtt_Port;
 
-#define THIS_MQTT_CLIENT "espGateCounterEX"
+#define THIS_MQTT_CLIENT "espGateCounterEX" // Look at line 90 and set variable for WiFi Client secure & PubSubCLient 12/23/23
 #define MQTT_PUB_TOPIC0  "msb/traffic/exit/hello"
 #define MQTT_PUB_TOPIC1  "msb/traffic/exit/temp"
 #define MQTT_PUB_TOPIC2  "msb/traffic/exit/time"
@@ -136,7 +139,7 @@ unsigned long nocarTimerMillis =0;
 unsigned long whileMillis; // used for debugging
 unsigned long lastwhileMillis = 0;
 
-unsigned long nocarTimeoutMillis = 1500; // Time required for High Pin to stay high to reset car in detection zone
+unsigned long nocarTimeoutMillis = 1200; // Time required for High Pin to stay high to reset car in detection zone
 unsigned long carpassingTimoutMillis = 3000; // Time delay to allow car to pass before checking for HIGN pin
 
 //unsigned long highMillis = 0; //Grab the time when the vehicle sensor is high
@@ -167,6 +170,35 @@ char months[12][4] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "S
 
 
 Adafruit_SSD1306 display = Adafruit_SSD1306(128, 64, &Wire, -1);
+
+unsigned long ota_progress_millis = 0;
+
+void onOTAStart() {
+  // Log when OTA has started
+  Serial.println("OTA update started!");
+  // <Add your own code here>
+}
+
+void onOTAProgress(size_t current, size_t final) {
+  // Log every 1 second
+  if (millis() - ota_progress_millis > 1000) {
+    ota_progress_millis = millis();
+    Serial.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
+  }
+}
+
+void onOTAEnd(bool success) {
+  // Log when OTA has finished
+  if (success) {
+    Serial.println("OTA update finished successfully!");
+  } else {
+    Serial.println("There was an error during OTA update!");
+  }
+  // <Add your own code here>
+}
+
+
+
 
 void setup_wifi() {
     Serial.println("Connecting to WiFi");
@@ -338,7 +370,7 @@ void setup() {
   if (SD.exists("/GateCount.csv")){
     Serial.println(F("GateCount.csv exists on SD Card."));
     myFile = SD.open("/GateCount.csv", FILE_APPEND);
-    myFile.println("Date Time,Pass Timer,NoCar Timer,TotalExitCars,CarsInPark,Temp");
+    myFile.println("Date Time,Pass Timer,NoCar Timer,Bounces,Car#,CarsInPark,Temp");
     myFile.close();
     Serial.println(F("Header Written to GateCount.csv"));
   }else{
@@ -356,7 +388,7 @@ void setup() {
   if (SD.exists("/SensorBounces.csv")){
     Serial.println(F("SensorBounces.csv exists on SD Card."));
     myFile2 = SD.open("/SensorBounces.csv", FILE_APPEND);
-    myFile2.println("Time,Time High,Last High,Diff,Bounce#,CurentState,Last State,Car# Being Counted");
+    myFile2.println("Time,Time High,Last High,Diff,Bounce#,CurentState,Last State,Car#");
     myFile2.close();
     Serial.println(F("Header Written to SensorBounces.csv"));
   }else{
@@ -426,6 +458,21 @@ void setup() {
   display.setCursor(0, line4);
   display.print("GATE Count");
 
+    server.on("/", []() {
+        server.send(200, "text/plain", "Hi! This is the Gate Counter.");
+      });
+
+  ElegantOTA.begin(&server);    // Start ElegantOTA
+  // ElegantOTA callbacks
+  ElegantOTA.onStart(onOTAStart);
+  ElegantOTA.onProgress(onOTAProgress);
+  ElegantOTA.onEnd(onOTAEnd);
+
+  server.begin();
+  Serial.println("HTTP server started");
+  
+
+
   Serial.println  ("Initializing Gate Counter");
     Serial.print("Temperature: ");
     temp=((rtc.getTemperature()*9/5)+32);
@@ -436,6 +483,9 @@ void setup() {
 }
 
 void loop() {
+  server.handleClient();
+  ElegantOTA.loop();
+
     // non-blocking WiFi and MQTT Connectivity Checks
     if (wifiMulti.run() == WL_CONNECTED) {
       // Check for MQTT connection only if wifi is connected
@@ -673,6 +723,8 @@ void loop() {
                        myFile.print(", ");
                       myFile.print (currentMillis-nocarTimerMillis) ; 
                       myFile.print(", "); 
+                      myFile.print (sensorBounceCount) ; 
+                      myFile.print(", ");                       
                       myFile.print (totalDailyCars) ; 
                       myFile.print(", ");
                       myFile.print(carCounterCars-totalDailyCars);
@@ -697,6 +749,7 @@ void loop() {
                       Serial.print(F("SD Card: Issue encountered while attempting to open the file GateCount.csv"));
                   }
                   carPresentFlag = 0;
+                  sensorBounceCount =0;
                   whileMillis = 0;
               }  // end of car passed check
 
