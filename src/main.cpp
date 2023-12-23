@@ -101,6 +101,7 @@ char mqtt_username[] = mqtt_UserName;
 char mqtt_password[] = mqtt_Password;
 const int mqtt_port = mqtt_Port;
 
+#define THIS_MQTT_CLIENT "espGateCounterEX"
 #define MQTT_PUB_TOPIC0  "msb/traffic/exit/hello"
 #define MQTT_PUB_TOPIC1  "msb/traffic/exit/temp"
 #define MQTT_PUB_TOPIC2  "msb/traffic/exit/time"
@@ -126,6 +127,7 @@ int currentHour = 0;
 int currentMin = 0;
 int totalDailyCars = 0;
 int carCounterCars =0;
+int sensorBounceCount=0;
 bool carPresentFlag = 0;
 
 bool nocarTimerFlag = 0;
@@ -235,7 +237,7 @@ void reconnect() {
   // Loop until we’re reconnected
   while (!mqtt_client.connected()) {
     Serial.print("Attempting MQTT connection… ");
-    String clientId = "espGateCounter";
+    String clientId = THIS_MQTT_CLIENT;
     // Attempt to connect
     if (mqtt_client.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
       Serial.println("connected!");
@@ -354,7 +356,7 @@ void setup() {
   if (SD.exists("/SensorBounces.csv")){
     Serial.println(F("SensorBounces.csv exists on SD Card."));
     myFile2 = SD.open("/SensorBounces.csv", FILE_APPEND);
-    myFile2.println("Time,Time High,Last High,Diff,NoCar Timer,CurentState,Last State,Car Number Counted");
+    myFile2.println("Time,Time High,Last High,Diff,Bounce#,CurentState,Last State,Car# Being Counted");
     myFile2.close();
     Serial.println(F("Header Written to SensorBounces.csv"));
   }else{
@@ -574,9 +576,9 @@ void loop() {
           Serial.print(carDetectedMillis);
           Serial.print(", Car Number Being Counted = ");         
           Serial.println (totalDailyCars+1) ;  
-          Serial.println("Time\t\t\tTime High\tLast High\tDiff\tNoCar Timer\tCurentState\tLast State\tCar Number Counted" );  
+          Serial.println("DateTime\t\t\tTime High\tLast High\tDiff\t\tBounce#\tCurentState\tLast State\tCar# Being Counted" );  
 //          currentMillis = millis();
-//          sensorBounces = 0;
+          sensorBounceCount = 0;
 
           // When Sensor is tripped, figure out when car clears sensing zone & sensor remains HIGH for period of time
           while (carPresentFlag == 1) {
@@ -586,7 +588,7 @@ void loop() {
                        if ((detectorState != lastdetectorState)  && (detectorState==HIGH)) {
                           DateTime now = rtc.now();
                           char buf2[] = "YYYY-MM-DD hh:mm:ss";
-                          
+                          sensorBounceCount ++;
                           
                           //start a timer when no car is detected
                           whileMillis=currentMillis-carDetectedMillis;
@@ -599,7 +601,7 @@ void loop() {
                           Serial.print(" \t\t ");   
                           Serial.print(whileMillis-lastwhileMillis);
                           Serial.print(" \t\t ");   
-                          Serial.print(currentMillis-nocarTimerMillis);
+                          Serial.print(sensorBounceCount);
                           Serial.print(" \t\t ");              
                           Serial.print(detectorState);
                           Serial.print(" \t\t ");
@@ -698,50 +700,6 @@ void loop() {
                   whileMillis = 0;
               }  // end of car passed check
 
-/*
-                  detectedStateMillis = millis(); // set timer when pin goes low
-                  sensorBounces ++;
-                  Serial.print("Switch Toggled Time from car detected = ");
-                  Serial.print(detectedStateMillis-lastdetectedStateMillis);
-                  Serial.print(digitalRead(vehicleSensorPin));
-                  Serial.print(" lastPinState = ");
-                  Serial.print(lastdetectorState);
-                  Serial.print(" ThisPinState = ");
-                  Serial.print(detectorState);
-                  Serial.print(" This Time = ");
-                  Serial.print(detectedStateMillis);
-                  Serial.print(" Last Time = ");
-                  Serial.print(lastdetectedStateMillis);
-                  Serial.print(" Diff = ");
-                  Serial.println(detectedStateMillis-lastdetectedStateMillis);
-             lastdetectedStateMillis=detectedStateMillis;
-                  DateTime now = rtc.now();
-                  char buf2[] = "YYYY-MM-DD hh:mm:ss";
-                  Serial.print(now.toString(buf2));
-                  // open file for writing debugging information
-                  myFile2 = SD.open("/SensorBounces.csv", FILE_APPEND);
-                  if (myFile2) {
-                      myFile2.print(now.toString(buf2));
-                      myFile2.print(", "); 
-                      myFile2.print(detectedStateMillis-lastdetectedStateMillis);
-                      myFile2.print(", "); 
-                      myFile2.print (totalDailyCars+1) ; //Prints car number being detected
-                      myFile2.print(", ");
-                      myFile2.println(sensorBounces);
-                      myFile2.close();
-                      Serial.println(F(" Bounce Log Recorded SD Card."));
-                  } else {
-                      Serial.print(F("SD Card: Issue encountered while attempting to open the file GateCount.csv"));
-                  }
-
-             
-             } else { 
-               if ((detectorState != LOW) && (millis()-lastdetectedStateMillis >= nocarMillis)) {
-                  //previousMillis = millis()-currentMillis;
-
-             }
-             lastdetectorState=detectorState;
-*/
              lastdetectorState=detectorState;
              lastdetectedStateMillis=currentMillis;
              lastwhileMillis=whileMillis;
