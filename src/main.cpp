@@ -104,7 +104,7 @@ char mqtt_username[] = mqtt_UserName;
 char mqtt_password[] = mqtt_Password;
 const int mqtt_port = mqtt_Port;
 
-#define THIS_MQTT_CLIENT "espGateCounterEX" // Look at line 90 and set variable for WiFi Client secure & PubSubCLient 12/23/23
+#define THIS_MQTT_CLIENT "espGateCounter" // Look at line 90 and set variable for WiFi Client secure & PubSubCLient 12/23/23
 #define MQTT_PUB_TOPIC0  "msb/traffic/exit/hello"
 #define MQTT_PUB_TOPIC1  "msb/traffic/exit/temp"
 #define MQTT_PUB_TOPIC2  "msb/traffic/exit/time"
@@ -634,7 +634,8 @@ void loop() {
           while (carPresentFlag == 1) {
              detectorState = digitalRead(vehicleSensorPin);
              currentMillis = millis();
-        
+             DateTime now = rtc.now();
+             char buf3[] = "YYYY-MM-DD hh:mm:ss";
                        if ((detectorState != lastdetectorState)  && (detectorState==HIGH)) {
                           DateTime now = rtc.now();
                           char buf2[] = "YYYY-MM-DD hh:mm:ss";
@@ -701,9 +702,8 @@ void loop() {
                       
              //allow enough time for 2nd axel to clear sensor and then make sure sensor remains high 12/23/23
              if (((currentMillis - carDetectedMillis)>=carpassingTimoutMillis) && (detectorState == HIGH) && (nocarTimerFlag ==0)) {
-                  DateTime now = rtc.now();
-                  char buf2[] = "YYYY-MM-DD hh:mm:ss";
-                  Serial.print(now.toString(buf2));
+
+                  Serial.print(now.toString(buf3));
                   Serial.print(", Millis NoCarTimer = ");
                   Serial.print(currentMillis-nocarTimerMillis);
                   Serial.print(", Total Millis to pass = ");
@@ -717,7 +717,7 @@ void loop() {
                   //"Date Time,Pass Timer,NoCar Timer,TotalExitCars,CarsInPark,Temp"
                   myFile = SD.open("/GateCount.csv", FILE_APPEND);
                   if (myFile) {
-                      myFile.print(now.toString(buf2));
+                      myFile.print(now.toString(buf3));
                       myFile.print(", ");
                       myFile.print (currentMillis-carDetectedMillis) ; 
                        myFile.print(", ");
@@ -737,7 +737,7 @@ void loop() {
                       Serial.print(F(" Cars in Park = "));
                       Serial.println(carCounterCars-totalDailyCars);  
                         mqtt_client.publish(MQTT_PUB_TOPIC1, String(temp).c_str());
-                        mqtt_client.publish(MQTT_PUB_TOPIC2, now.toString(buf2));
+                        mqtt_client.publish(MQTT_PUB_TOPIC2, now.toString(buf3));
                         mqtt_client.publish(MQTT_PUB_TOPIC3, String(totalDailyCars).c_str());
                         mqtt_client.publish(MQTT_PUB_TOPIC4, String(carCounterCars-totalDailyCars).c_str());
                         //snprintf (msg, MSG_BUFFER_SIZE, "Car #%ld,", totalDailyCars);
