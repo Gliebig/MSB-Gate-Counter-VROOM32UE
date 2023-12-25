@@ -645,7 +645,7 @@ void loop() {
                           char buf2[] = "YYYY-MM-DD hh:mm:ss";
                           //Count number of Bounces and check each 4 bounces
                           sensorBounceCount ++;
-                          
+                          sensorBounceRemainder = sensorBounceCount % 4;
                           //start a timer when no car is detected
                           whileMillis=currentMillis-carDetectedMillis;
 
@@ -693,8 +693,8 @@ void loop() {
                           }
                        } // end of if detector state is bouncing check
                       
-                      //force reset if there is an undetectable car present 12/25/23
-                      if ((sensorBounceRemainder ==0) && (whileMillis-lastwhileMillis>1042)){
+                      //force count & reset if there is an undetectable car present 12/25/23
+                      if ((sensorBounceRemainder == 0) && (whileMillis-lastwhileMillis>1042)){
                         nocarTimerFlag = 0; 
                         sensorBounceFlag = 1;  
                       }else{
@@ -712,7 +712,7 @@ void loop() {
 
 
              //allow enough time for a car to pass and then make sure sensor remains high 12/23/23
-             if (((currentMillis - carDetectedMillis)>=carpassingTimoutMillis) && (detectorState == HIGH) && (nocarTimerFlag ==0)) {
+             if (((currentMillis - carDetectedMillis)>=carpassingTimoutMillis) && (detectorState == HIGH) && (nocarTimerFlag == 0)) {
 
                   Serial.print(now.toString(buf3));
                   Serial.print(", Millis NoCarTimer = ");
@@ -741,6 +741,8 @@ void loop() {
                       myFile.print(carCounterCars-totalDailyCars);
                       myFile.print(", ");
                       myFile.println(temp);
+                      myFile.print(", ");
+                      myFile.println(sensorBounceFlag);
                       myFile.close();
                       
                       Serial.print(F("Car Saved to SD Card. Car Number = "));
@@ -760,15 +762,15 @@ void loop() {
                       Serial.print(F("SD Card: Issue encountered while attempting to open the file GateCount.csv"));
                   }
                   carPresentFlag = 0;
-                  
+                  sensorBounceFlag = 0;
                   whileMillis = 0;
               }  // end of car passed check
 
              lastdetectorState=detectorState;
              lastdetectedStateMillis=currentMillis;
              lastwhileMillis=whileMillis;
-             sensorBounceCount =0;
-             sensorBounceFlag =0;
+             //sensorBounceCount =0;
+            
            } // end of while loop
 
       } // end of detectorState == LOW    
