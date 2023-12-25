@@ -639,12 +639,13 @@ void loop() {
           while (carPresentFlag == 1) {
              detectorState = digitalRead(vehicleSensorPin);
              currentMillis = millis();
+             
 
                        if ((detectorState != lastdetectorState)  && (detectorState==HIGH)) {
                           DateTime now = rtc.now();
                           char buf2[] = "YYYY-MM-DD hh:mm:ss";
                           //Count number of Bounces and check each 4 bounces
-                          sensorBounceCount ++;
+                         sensorBounceCount ++;
                           sensorBounceRemainder = sensorBounceCount % 4;
                           //start a timer when no car is detected
                           whileMillis=currentMillis-carDetectedMillis;
@@ -678,7 +679,7 @@ void loop() {
                               myFile2.print(", ");
                               myFile2.print(whileMillis-lastwhileMillis);
                               myFile2.print(", ");
-                              myFile2.print(currentMillis-nocarTimerMillis);
+                              myFile2.print(sensorBounceCount);
                               myFile2.print(" , ");              
                               myFile2.print(detectorState);
                               myFile2.print(" , ");
@@ -769,9 +770,9 @@ void loop() {
              lastdetectorState=detectorState;
              lastdetectedStateMillis=currentMillis;
              lastwhileMillis=whileMillis;
-             //sensorBounceCount =0;
+            
             
            } // end of while loop
-
+             sensorBounceCount =0;
       } // end of detectorState == LOW    
 }
