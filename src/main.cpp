@@ -622,11 +622,13 @@ void loop() {
           lastwhileMillis = 0;
           carPresentFlag = 1; // when detector senses car, set flag car is present.
           carDetectedMillis = millis(); // Freeze time when car was detected 
-          Serial.print("Car Triggered Detector, time = ");
+          DateTime now = rtc.now();
+          char buf3[] = "YYYY-MM-DD hh:mm:ss";
+          Serial.print("Car Triggered Detector at = ");
           Serial.print(carDetectedMillis);
           Serial.print(", Car Number Being Counted = ");         
           Serial.println (totalDailyCars+1) ;  
-          Serial.println("DateTime\t\t\tTime High\tLast High\tDiff\t\tBounce#\tCurentState\tLast State\tCar# Being Counted" );  
+          Serial.println("DateTime\t\t\tTime High\tLast High\tDiff\t\tBounce#\tCurent State\tLast State\tCar# Being Counted" );  
 //          currentMillis = millis();
           sensorBounceCount = 0;
 
@@ -634,8 +636,7 @@ void loop() {
           while (carPresentFlag == 1) {
              detectorState = digitalRead(vehicleSensorPin);
              currentMillis = millis();
-             DateTime now = rtc.now();
-             char buf3[] = "YYYY-MM-DD hh:mm:ss";
+
                        if ((detectorState != lastdetectorState)  && (detectorState==HIGH)) {
                           DateTime now = rtc.now();
                           char buf2[] = "YYYY-MM-DD hh:mm:ss";
@@ -749,13 +750,14 @@ void loop() {
                       Serial.print(F("SD Card: Issue encountered while attempting to open the file GateCount.csv"));
                   }
                   carPresentFlag = 0;
-                  sensorBounceCount =0;
+                  
                   whileMillis = 0;
               }  // end of car passed check
 
              lastdetectorState=detectorState;
              lastdetectedStateMillis=currentMillis;
              lastwhileMillis=whileMillis;
+             sensorBounceCount =0;
            } // end of while loop
 
       } // end of detectorState == LOW    
