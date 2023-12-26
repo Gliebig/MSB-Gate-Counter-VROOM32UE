@@ -133,15 +133,15 @@ int carCounterCars =0;
 int sensorBounceCount=0;
 int sensorBounceRemainder;
 bool sensorBounceFlag;
-
+int axelcount=0;
 bool carPresentFlag = 0;
 
 bool nocarTimerFlag = 0;
 unsigned long nocarTimerMillis =0;
 bool detectorState;
 bool lastdetectorState;
-unsigned long whileMillis; // used for debugging
-unsigned long lastwhileMillis = 0;
+unsigned long whileHighMillis; // used for debugging
+unsigned long lastwhileHighMillis = 0;
 
 unsigned long nocarTimeoutMillis = 500; // Time required for High Pin to stay high to reset car in detection zone
 unsigned long carpassingTimoutMillis = 3500; // Time delay to allow car to pass before checking for HIGN pin
@@ -622,7 +622,7 @@ void loop() {
 	    // Sensing Vehicle  
       // Detector LOW when vehicle sensed, Normally HIGH
       if (detectorState == LOW) {
-          lastwhileMillis = 0;
+          lastwhileHighMillis = 0;
           carPresentFlag = 1; // when detector senses car, set flag car is present.
           carDetectedMillis = millis(); // Freeze time when car was detected 
           DateTime now = rtc.now();
@@ -634,6 +634,7 @@ void loop() {
           Serial.println("DateTime\t\t\tTime High\tLast High\tDiff\t\tBounce#\tCurent State\tLast State\tCar# Being Counted" );  
 //          currentMillis = millis();
           sensorBounceCount = 0;
+          axelcount=0;
           
           // When Sensor is tripped, figure out when car clears sensing zone & sensor remains HIGH for period of time
           while (carPresentFlag == 1) {
@@ -646,18 +647,18 @@ void loop() {
                           char buf2[] = "YYYY-MM-DD hh:mm:ss";
                           //Count number of Bounces and check each 4 bounces
                          sensorBounceCount ++;
-                          sensorBounceRemainder = sensorBounceCount % 4;
+                          sensorBounceRemainder = sensorBounceCount % 3; //if sensor goes high x then an axel was counted
                           //start a timer when no car is detected
-                          whileMillis=currentMillis-carDetectedMillis;
+                          whileHighMillis=currentMillis-carDetectedMillis;
 
                           nocarTimerFlag = 1;  // change state to active
                           Serial.print(now.toString(buf2));
                           Serial.print(" \t\t ");
                           Serial.print(currentMillis-carDetectedMillis);
                           Serial.print(" \t\t ");
-                          Serial.print(lastwhileMillis);
+                          Serial.print(lastwhileHighMillis);
                           Serial.print(" \t\t ");   
-                          Serial.print(whileMillis-lastwhileMillis);
+                          Serial.print(whileHighMillis-lastwhileHighMillis);
                           Serial.print(" \t\t ");   
                           Serial.print(sensorBounceCount);
                           Serial.print(" \t\t ");              
@@ -675,9 +676,9 @@ void loop() {
                               myFile2.print(", "); 
                               myFile2.print(currentMillis-carDetectedMillis);
                               myFile2.print(", "); 
-                              myFile2.print (lastwhileMillis) ; //Prints car number being detected
+                              myFile2.print (lastwhileHighMillis) ; //Prints car number being detected
                               myFile2.print(", ");
-                              myFile2.print(whileMillis-lastwhileMillis);
+                              myFile2.print(whileHighMillis-lastwhileHighMillis);
                               myFile2.print(", ");
                               myFile2.print(sensorBounceCount);
                               myFile2.print(" , ");              
@@ -695,9 +696,12 @@ void loop() {
                        } // end of if detector state is bouncing check
                       
                       //force count & reset if there is an undetectable car present 12/25/23
-                      if ((sensorBounceRemainder == 0) && (whileMillis-lastwhileMillis>1042)){
+                      if ((sensorBounceRemainder == 0) && (whileHighMillis-lastwhileHighMillis>1040)){
+                        axelcount++;
+                        if (axelcount>=2){
                         nocarTimerFlag = 0; 
-                        sensorBounceFlag = 1;  
+                        sensorBounceFlag = 1;
+                        }  
                       }else{
                       
                             // Check added 12/21/23 to ensure no car is present for x millis
@@ -764,12 +768,12 @@ void loop() {
                   }
                   carPresentFlag = 0;
                   sensorBounceFlag = 0;
-                  whileMillis = 0;
+                  whileHighMillis = 0;
               }  // end of car passed check
 
              lastdetectorState=detectorState;
              lastdetectedStateMillis=currentMillis;
-             lastwhileMillis=whileMillis;
+             lastwhileHighMillis=whileHighMillis;
             
             
            } // end of while loop
