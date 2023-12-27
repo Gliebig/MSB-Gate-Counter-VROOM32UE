@@ -138,15 +138,15 @@ bool carPresentFlag = 0;
 
 bool nocarTimerFlag = 0;
 unsigned long nocarTimerMillis =0;
-bool detectorState;
-bool lastdetectorState;
+bool detectorState =1;
+bool lastdetectorState =1;
 unsigned long whileMillis; // used for debugging
 unsigned long lastwhileMillis = 0;
 unsigned long detectorStateLowMillis; // used for debugging
 unsigned long lastdetectorStateLowMillis = 0;
 
 unsigned long nocarTimeoutMillis = 500; // Time required for High Pin to stay high to reset car in detection zone
-unsigned long carpassingTimoutMillis = 5000; // Time delay to allow car to pass before checking for HIGN pin
+unsigned long carpassingTimoutMillis = 9000; // Time delay to allow car to pass before checking for HIGN pin
 
 //unsigned long highMillis = 0; //Grab the time when the vehicle sensor is high
 unsigned long previousMillis; // Last time sendor pin changed state
@@ -374,7 +374,7 @@ void setup() {
   if (SD.exists("/GateCount.csv")){
     Serial.println(F("GateCount.csv exists on SD Card."));
     myFile = SD.open("/GateCount.csv", FILE_APPEND);
-    myFile.println("Date Time,Pass Timer,NoCar Timer,Bounces,Car#,CarsInPark,Temp");
+    myFile.println("Date Time,Pass Timer,NoCar Timer,Bounces,Car#,Cars In Park,Temp");
     myFile.close();
     Serial.println(F("Header Written to GateCount.csv"));
   }else{
@@ -617,15 +617,13 @@ void loop() {
 
 
       display.display();
-
+      digitalRead(vehicleSensorPin);
       // Count Cars Exiting
-      detectorState = digitalRead(vehicleSensorPin);
-
-	    // Sensing Vehicle  
+      // Sensing Vehicle  
       // Detector LOW when vehicle sensed, Normally HIGH
-      if (detectorState == LOW) {
+      if (digitalRead(vehicleSensorPin) == LOW) {
           lastwhileMillis = 0;
-          sensorBounceCount = 1; //Sensor went low 1st time
+          sensorBounceCount = 0; //Sensor went low 1st time
           carPresentFlag = 1; // when detector senses car, set flag car is present.
           carDetectedMillis = millis(); // Freeze time when car was detected
           detectorStateLowMillis = millis();
@@ -765,7 +763,7 @@ void loop() {
                       myFile.print(", ");
                       myFile.print(carCounterCars-totalDailyCars);
                       myFile.print(", ");
-                      myFile.println(temp);
+                      myFile.print(temp);
                       myFile.print(", ");
                       myFile.println(sensorBounceFlag);
                       myFile.close();
@@ -798,7 +796,7 @@ void loop() {
             
            } // end of while loop
 
-      } // end of detectorState went low after reset to count new car    
+      } // Start looking for next lOW on Vehicle sensor
 
       //loop forever looking for car and update time and counts
 }
