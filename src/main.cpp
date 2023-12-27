@@ -144,7 +144,7 @@ unsigned long whileHighMillis; // used for debugging
 unsigned long lastwhileHighMillis = 0;
 
 unsigned long nocarTimeoutMillis = 500; // Time required for High Pin to stay high to reset car in detection zone
-unsigned long carpassingTimoutMillis = 3500; // Time delay to allow car to pass before checking for HIGN pin
+unsigned long carpassingTimoutMillis = 6000; // Time delay to allow car to pass before checking for HIGN pin
 
 //unsigned long highMillis = 0; //Grab the time when the vehicle sensor is high
 unsigned long previousMillis; // Last time sendor pin changed state
@@ -698,10 +698,10 @@ void loop() {
                       //force count & reset if there is an undetectable car present 12/25/23
                       if ((sensorBounceRemainder == 0) && (whileHighMillis-lastwhileHighMillis>1040)){
                         axelcount++;
-                        if (axelcount>=2){
-                        nocarTimerFlag = 0; 
-                        sensorBounceFlag = 1;
-                        }  
+                        ;;if (axelcount>=2){
+                        ;;nocarTimerFlag = 0; 
+                        ;;sensorBounceFlag = 1;
+                        ;;}  
                       }else{
                       
                             // Check added 12/21/23 to ensure no car is present for x millis
@@ -745,7 +745,7 @@ void loop() {
                       myFile.print(", ");
                       myFile.print(carCounterCars-totalDailyCars);
                       myFile.print(", ");
-                      myFile.println(temp);
+                      myFile.print(temp);
                       myFile.print(", ");
                       myFile.println(sensorBounceFlag);
                       myFile.close();
