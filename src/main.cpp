@@ -133,15 +133,15 @@ int carCounterCars =0;
 int sensorBounceCount=0;
 int sensorBounceRemainder;
 bool sensorBounceFlag;
-int axelcount=0;
+
 bool carPresentFlag = 0;
 
 bool nocarTimerFlag = 0;
 unsigned long nocarTimerMillis =0;
 bool detectorState;
 bool lastdetectorState;
-unsigned long whileHighMillis; // used for debugging
-unsigned long lastwhileHighMillis = 0;
+unsigned long whileMillis; // used for debugging
+unsigned long lastwhileMillis = 0;
 unsigned long detectorStateLowMillis; // used for debugging
 unsigned long lastdetectorStateLowMillis = 0;
 
@@ -662,7 +662,7 @@ void loop() {
                           Serial.print(" \t\t ");
                           Serial.print(currentMillis-carDetectedMillis);
                           Serial.print(" \t\t ");
-                          Serial.print(lastwhileHighMillis);
+                          Serial.print(lastwhileMillis);
                           Serial.print(" \t\t ");   
                           Serial.print(whileMillis-lastwhileMillis);
                           Serial.print(" \t\t ");   
@@ -686,7 +686,7 @@ void loop() {
                               myFile2.print(", "); 
                               myFile2.print (lastwhileMillis) ; 
                               myFile2.print(", ");
-                              myFile2.print(whileHighMillis-lastwhileHighMillis);
+                              myFile2.print(whileMillis-lastwhileMillis);
                               myFile2.print(", ");
                               myFile2.print(detectorStateLowMillis);
                               myFile2.print(", ");
@@ -765,7 +765,7 @@ void loop() {
                       myFile.print(", ");
                       myFile.print(carCounterCars-totalDailyCars);
                       myFile.print(", ");
-                      myFile.print(temp);
+                      myFile.println(temp);
                       myFile.print(", ");
                       myFile.println(sensorBounceFlag);
                       myFile.close();
@@ -788,7 +788,7 @@ void loop() {
                   }
                   carPresentFlag = 0;
                   sensorBounceFlag = 0;
-                  whileHighMillis = 0;
+                  whileMillis = 0;
               }  // end of car passed check
 
              lastdetectorState=detectorState;
@@ -801,6 +801,4 @@ void loop() {
       } // end of detectorState went low after reset to count new car    
 
       //loop forever looking for car and update time and counts
-             sensorBounceCount =0;
-      } // end of detectorState == LOW    
 }
