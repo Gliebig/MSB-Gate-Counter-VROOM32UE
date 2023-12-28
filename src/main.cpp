@@ -145,14 +145,17 @@ unsigned long lastwhileMillis = 0;
 unsigned long detectorStateLowMillis; // used for debugging
 unsigned long lastdetectorStateLowMillis = 0;
 unsigned long detectorStateHighMillis;
+unsigned long lastdetectorStateHighMillis;
+
 //###############################################################################################################
-unsigned long nocarTimeoutMillis = 500; // Time required for High Pin to stay high to reset car in detection zone
+unsigned long nocarTimeoutMillis = 1500; // Time required for High Pin to stay high to reset car in detection zone
 unsigned long carpassingTimoutMillis = 6000; // Time delay to allow car to pass before checking for HIGN pin
 
 //unsigned long highMillis = 0; //Grab the time when the vehicle sensor is high
 unsigned long previousMillis; // Last time sendor pin changed state
 unsigned long currentMillis; // Comparrison time holder
 unsigned long carDetectedMillis;  // Grab the ime when sensor 1st trips
+unsigned long lastcarDetectedMillis;  // Grab the ime when sensor 1st trips
 
 
 unsigned long wifi_lastReconnectAttemptMillis;
@@ -393,8 +396,8 @@ void setup() {
   if (SD.exists("/SensorBounces.csv")){
     Serial.println(F("SensorBounces.csv exists on SD Card."));
     myFile2 = SD.open("/SensorBounces.csv", FILE_APPEND);
-    //Serial.println("DateTime\t\t\tTime High\tLast High\tDiff\tLow Millis\tBounce #\tCurent State\tLast State\tCar#" );
-    myFile2.println("Time,Time High,Last High,Diff,Low Millis,Bounce#,Curent State,Last State,Car#");
+    //("DateTime\t\t\tPassing Time\tLast High\tDiff\tLow Millis\tLast Low\tDiff\tBounce #\tCurent State\tCar#" )
+    myFile2.println("Time,Pass Timer,Last High,Diff,No Car Timer,Low Millis,Last Low,Diff,Bounce#,Curent State,Car#");
     myFile2.close();
     Serial.println(F("Header Written to SensorBounces.csv"));
   }else{
@@ -618,39 +621,44 @@ void loop() {
 
 
       display.display();
-      digitalRead(vehicleSensorPin);
+      detectorState=digitalRead(vehicleSensorPin);
       // Count Cars Exiting
       // Sensing Vehicle  
       // Detector LOW when vehicle sensed, Normally HIGH
-      if (digitalRead(vehicleSensorPin) == LOW) {
+      if (detectorState == LOW) {
           lastwhileMillis = 0;
+          lastdetectorStateLowMillis=0;
+          nocarTimerMillis=0;
           sensorBounceCount = 0; //Sensor went low 1st time
           carPresentFlag = 1; // when detector senses car, set flag car is present.
           carDetectedMillis = millis(); // Freeze time when car was detected
           detectorStateHighMillis = 0;
+          lastdetectorState=HIGH;
           DateTime now = rtc.now();
           char buf3[] = "YYYY-MM-DD hh:mm:ss"; //time of day when detector was tripped
           Serial.print("Car Triggered Detector at = ");
           Serial.print(carDetectedMillis);
           Serial.print(", Car Number Being Counted = ");         
           Serial.println (totalDailyCars+1) ;  //add 1 to total daily cars so car being detected is synced
-          Serial.println("DateTime\t\t\tTime High\tLast High\tDiff\tLow Millis\tBounce #\tCurent State\tLast State\tCar#" );  
+          Serial.println("DateTime\t\t\tWhile\tLHigh\tDiff\tnoCar\tLow Millis\tLast LOW\tDiff\tBounce #\tCurent State\tCar#" );  
 
           // When Sensor is tripped, figure out when car clears sensing zone & sensor remains HIGH for period of time
           // Then Reset Car Present Flag to 0
           while (carPresentFlag == 1) {
              detectorState = digitalRead(vehicleSensorPin);
              currentMillis = millis();
-             whileMillis=currentMillis-carDetectedMillis; //            
-                       //if detector state changes from lOW to HIGH a car is moving over sensor. If it remains HIGH no car is detected
-                       
+
+             whileMillis=millis()-carDetectedMillis; //   Record relative time passing         
+                       //if detector state changes from lOW to HIGH a car cleared sensor. If it remains HIGH no car is detected
+                      
                        if ((detectorState != lastdetectorState)  && (detectorState==HIGH)) {
-                        detectorStateHighMillis=millis()-carDetectedMillis;
+                                          lastwhileMillis=whileMillis; 
+                          //               nocarTimerMillis = millis();       
                        }
-                       
+
                        if ((detectorState != lastdetectorState)  && (detectorState==LOW)) {
                           sensorBounceCount ++;  //count the state changes
-
+                          nocarTimerMillis = millis();
 
                           DateTime now = rtc.now();
                           char buf2[] = "YYYY-MM-DD hh:mm:ss";
@@ -664,45 +672,51 @@ void loop() {
                           //Debugging Code Can be removed  **************************************************************************
                           Serial.print(now.toString(buf2));
                           Serial.print(" \t\t ");
-                          Serial.print(currentMillis-carDetectedMillis);
+                          Serial.print(whileMillis);
                           Serial.print(" \t ");
-                        //  Serial.print(lastwhileMillis);
+                          Serial.print(lastwhileMillis);
+                          Serial.print(" \t ");
+                          Serial.print(whileMillis-lastwhileMillis);
+                          Serial.print(" \t ");
+                          Serial.print(millis()-nocarTimerMillis);  
+                          Serial.print(" \t ");
                           Serial.print(detectorStateLowMillis);                        
-                          Serial.print(" \t ");   
-                        //  Serial.print(whileMillis-lastwhileMillis);
-                          Serial.print(detectorStateHighMillis);
-                          Serial.print(" \t ");   
-                          Serial.print(detectorStateLowMillis-detectorStateHighMillis);
                           Serial.print(" \t\t ");   
-                          Serial.print(detectorStateLowMillis);
+                          Serial.print(lastdetectorStateLowMillis);
+                          Serial.print(" \t\t ");   
+                          Serial.print(detectorStateLowMillis-lastdetectorStateLowMillis);
                           Serial.print(" \t\t ");   
                           Serial.print(sensorBounceCount);
                           Serial.print(" \t\t ");              
                           Serial.print(detectorState);
-                          Serial.print(" \t\t ");
-                          Serial.print(lastdetectorState);
+                          //Serial.print(" \t\t ");
+                          //Serial.print(lastdetectorState);
                           Serial.print(" \t\t ");
                           Serial.print(totalDailyCars+1);
                           Serial.println();
                          
-                         //Time\tTime High\tLast High\tDiff\tLow Millis\tBounce #\t\tCurent State\tLast State\tCar#
+                         //T("DateTime\t\t\tPassing Time\tLast High\tDiff\tLow Millis\tLast Low\tDiff\tBounce #\tCurent State\tCar#" )
                           myFile2 = SD.open("/SensorBounces.csv", FILE_APPEND);
                           if (myFile2) {
                               myFile2.print(now.toString(buf2));
                               myFile2.print(", "); 
-                              myFile2.print(currentMillis-carDetectedMillis);
+                              myFile2.print(whileMillis);
                               myFile2.print(", "); 
-                              myFile2.print (detectorStateLowMillis) ; 
+                              myFile2.print (lastwhileMillis) ; 
                               myFile2.print(", ");
-                              myFile2.print(detectorStateHighMillis);
+                              myFile2.print(whileMillis-lastwhileMillis);
                               myFile2.print(", ");
-                              myFile2.print(detectorStateLowMillis-detectorStateHighMillis);
+                              myFile2.print(millis()-nocarTimerMillis);
                               myFile2.print(", ");
-                              myFile2.print(sensorBounceCount);
+                              myFile2.print(detectorStateLowMillis);
+                              myFile2.print(", ");
+                              myFile2.print(lastdetectorStateLowMillis);
+                              myFile2.print(", ");
+                              myFile2.print(detectorStateLowMillis-lastdetectorStateLowMillis);
                               myFile2.print(" , ");              
-                              myFile2.print(detectorState);
+                              myFile2.print(sensorBounceCount);
                               myFile2.print(" , ");
-                              myFile2.print(lastdetectorState);
+                              myFile2.print(detectorState);
                               myFile2.print(" , ");
                               myFile2.print(totalDailyCars+1); //Prints car number being detected
                               myFile2.println();
@@ -728,14 +742,14 @@ void loop() {
                       
                             // Check added 12/21/23 to ensure no car is present for x millis
                             if (detectorState==HIGH)  {
-                                         lastwhileMillis=whileMillis;  
+                                         //lastwhileMillis=whileMillis;  
                               
                               // If no car is present and state does not change, then car has passed
-                              if ((currentMillis - nocarTimerMillis) >= nocarTimeoutMillis)  { 
+                              if (((currentMillis - nocarTimerMillis) >= nocarTimeoutMillis) && (sensorBounceCount >=3)) { 
                                 nocarTimerFlag = 0;
                               } 
                             } else {
-                              nocarTimerMillis = millis();   // Start or Reset Timer when pin goes high
+                              //nocarTimerMillis = millis();   // Start or Reset Timer when pin goes high
                               nocarTimerFlag = 1;  // change state to active
                               }
                       //}
@@ -745,8 +759,8 @@ void loop() {
              //Conditions that myst be met for a car to be clear and count the car ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
              //Main Reset car passing timer
              
-             if (((currentMillis - carDetectedMillis)>=carpassingTimoutMillis) && (detectorState == HIGH) && (nocarTimerFlag == 0)) {
-
+             //if (((currentMillis - carDetectedMillis)>=carpassingTimoutMillis) && (detectorState == HIGH) && (nocarTimerFlag == 0)) {
+               if ((detectorState == HIGH) && (nocarTimerFlag == 0)) {
                   Serial.print(now.toString(buf3));
                   Serial.print(", Millis NoCarTimer = ");
                   Serial.print(currentMillis-nocarTimerMillis);
@@ -764,7 +778,7 @@ void loop() {
                       myFile.print(now.toString(buf3));
                       myFile.print(", ");
                       myFile.print (currentMillis-carDetectedMillis) ; 
-                       myFile.print(", ");
+                      myFile.print(", ");
                       myFile.print (currentMillis-nocarTimerMillis) ; 
                       myFile.print(", "); 
                       myFile.print (sensorBounceCount) ; 
@@ -797,15 +811,17 @@ void loop() {
                   carPresentFlag = 0;
                   sensorBounceFlag = 0;
                   whileMillis = 0;
+                  lastcarDetectedMillis=carDetectedMillis;
               }  // end of car passed check
 
              lastdetectorState=detectorState;
              lastdetectorStateLowMillis=detectorStateLowMillis;
-             lastwhileMillis=whileMillis;
+             lastdetectorStateHighMillis=detectorStateHighMillis;
+
+
              //sensorBounceCount =0;
             
            } // end of while loop
-
       } // Start looking for next lOW on Vehicle sensor
 
       //loop forever looking for car and update time and counts
