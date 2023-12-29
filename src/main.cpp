@@ -19,6 +19,7 @@ D23 - MOSI
 #include <Arduino.h>
 #include <Wire.h>
 #include <PubSubClient.h>
+//#include <ArduinoJson.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include "RTClib.h"
@@ -640,7 +641,7 @@ void loop() {
           Serial.print(carDetectedMillis);
           Serial.print(", Car Number Being Counted = ");         
           Serial.println (totalDailyCars+1) ;  //add 1 to total daily cars so car being detected is synced
-          Serial.println("DateTime\t\t\tWhile\tLHigh\tDiff\tnoCar\tLow Millis\tLast LOW\tDiff\tBounce #\tCurent State\tCar#" );  
+          Serial.println("DateTime\t\tWhile\tLHigh\tDiff\tnoCar\tLow Millis\tLast LOW\tDiff\tBounce #\tCurent State\tCar#" );  
 
           // When Sensor is tripped, figure out when car clears sensing zone & sensor remains HIGH for period of time
           // Then Reset Car Present Flag to 0
@@ -653,13 +654,15 @@ void loop() {
                       
                        if ((detectorState != lastdetectorState)  && (detectorState==HIGH)) {
                                           lastwhileMillis=whileMillis; 
-                          //               nocarTimerMillis = millis();       
+                                          nocarTimerMillis = millis();       
                        }
 
                        if ((detectorState != lastdetectorState)  && (detectorState==LOW)) {
                           sensorBounceCount ++;  //count the state changes
-                          nocarTimerMillis = millis();
-
+                          //nocarTimerMillis = millis();
+                       //}
+                       
+                       //Record Bounce
                           DateTime now = rtc.now();
                           char buf2[] = "YYYY-MM-DD hh:mm:ss";
                           //Count number of Bounces and check each 4 bounces
@@ -745,9 +748,14 @@ void loop() {
                                          //lastwhileMillis=whileMillis;  
                               
                               // If no car is present and state does not change, then car has passed
-                              if (((currentMillis - nocarTimerMillis) >= nocarTimeoutMillis) && (sensorBounceCount >=3)) { 
+                              if (((currentMillis - nocarTimerMillis) >= nocarTimeoutMillis) && (sensorBounceCount >=4)) { 
                                 nocarTimerFlag = 0;
                               } 
+                              //Resets if Loop sticks after 15 seconds and does not record a car.
+                              if (currentMillis - carDetectedMillis > 15000) {
+                                 break;
+                              }
+
                             } else {
                               //nocarTimerMillis = millis();   // Start or Reset Timer when pin goes high
                               nocarTimerFlag = 1;  // change state to active
