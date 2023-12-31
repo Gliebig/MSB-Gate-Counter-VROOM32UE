@@ -770,7 +770,7 @@ void loop() {
                               //Resets if Loop sticks after 10 seconds and does not record a car.
                               if (millis() - carDetectedMillis > 10000) {
                                  Serial.println("Timeout! No Car Counted");
-                        mqtt_client.publish(MQTT_PUB_TOPIC5, "Timeout!:" String(totalDailyCars).c_str());
+                        mqtt_client.publish(MQTT_PUB_TOPIC5, "Timeout! Car: ",String(totalDailyCars+1).c_str());
                                  carPresentFlag=0;
                                  break;
                               }
