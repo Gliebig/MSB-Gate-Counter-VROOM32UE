@@ -153,7 +153,7 @@ unsigned long detectorStateHighMillis;
 unsigned long lastdetectorStateHighMillis;
 
 //###############################################################################################################
-unsigned long nocarTimeoutMillis = 1500; // Time required for High Pin to stay high to reset car in detection zone
+unsigned long nocarTimeoutMillis = 900; // Time required for High Pin to stay high to reset car in detection zone
 unsigned long carpassingTimoutMillis = 6000; // Time delay to allow car to pass before checking for HIGN pin
 
 //unsigned long highMillis = 0; //Grab the time when the vehicle sensor is high
@@ -383,7 +383,7 @@ void setup() {
   if (SD.exists("/GateCount.csv")){
     Serial.println(F("GateCount.csv exists on SD Card."));
     myFile = SD.open("/GateCount.csv", FILE_APPEND);
-    myFile.println("Date Time,Pass Timer,NoCar Timer,Bounces,Car#,Cars In Park,Temp");
+    myFile.println("Date Time,Pass Timer,NoCar Timer,Bounces,Car#,Cars In Park,Temp,Last Car Millis, This Car Millis,Bounce Flag,Millis");
     myFile.close();
     Serial.println(F("Header Written to GateCount.csv"));
   }else{
@@ -402,7 +402,7 @@ void setup() {
     Serial.println(F("SensorBounces.csv exists on SD Card."));
     myFile2 = SD.open("/SensorBounces.csv", FILE_APPEND);
     //("DateTime\t\t\tPassing Time\tLast High\tDiff\tLow Millis\tLast Low\tDiff\tBounce #\tCurent State\tCar#" )
-    myFile2.println("Time,Pass Timer,Last High,Diff,No Car Timer,Low Millis,Last Low,Diff,Bounce#,Curent State,Car#");
+    myFile2.println("Time,Pass Timer,Last High,Diff,No Car Timer,Low Millis,Last Low,Diff,Bounce#,Curent State,Car#,Millis");
     myFile2.close();
     Serial.println(F("Header Written to SensorBounces.csv"));
   }else{
@@ -657,7 +657,7 @@ void loop() {
           Serial.print(carDetectedMillis);
           Serial.print(", Car Number Being Counted = ");         
           Serial.println (totalDailyCars+1) ;  //add 1 to total daily cars so car being detected is synced
-          Serial.println("DateTime\t\tWhile\tLHigh\tDiff\tnoCar\tLow Millis\tLast LOW\tDiff\tBounce #\tCurent State\tCar#" );  
+          Serial.println("DateTime\t\tWhile\tLHigh\tDiff\tnoCar\tLow Millis\tLast LOW\tDiff\tBounce #\tCurent State\tCar#\tMillis" );  
 
           // When Sensor is tripped, figure out when car clears sensing zone & sensor remains HIGH for period of time
           // Then Reset Car Present Flag to 0
@@ -712,6 +712,8 @@ void loop() {
                           //Serial.print(lastdetectorState);
                           Serial.print(" \t\t ");
                           Serial.print(totalDailyCars+1);
+                          Serial.print(" \t\t ");
+                          Serial.print(millis());
                           Serial.println();
                          
                          //T("DateTime\t\t\tPassing Time\tLast High\tDiff\tLow Millis\tLast Low\tDiff\tBounce #\tCurent State\tCar#" )
@@ -737,7 +739,13 @@ void loop() {
                               myFile2.print(" , ");
                               myFile2.print(detectorState);
                               myFile2.print(" , ");
-                              myFile2.print(totalDailyCars+1); //Prints car number being detected
+                              myFile2.print(totalDailyCars+1); //Prints this Car millis
+                              myFile2.print(" , ");
+                              myFile2.print(lastcarDetectedMillis); //Prints Last car millis
+                              myFile2.print(" , ");
+                              myFile2.print(carDetectedMillis); //Prints car number being detected
+                              myFile2.print(" , ");
+                              myFile2.print(millis()); //Prints current millis for debugging
                               myFile2.println();
                               myFile2.close();
                               //Serial.println(F(" Bounce Log Recorded SD Card."));
@@ -764,13 +772,13 @@ void loop() {
                                          //lastwhileMillis=whileMillis;  
                               
                               // If no car is present and state does not change, then car has passed
-                              if (((millis() - nocarTimerMillis) >= nocarTimeoutMillis) && (sensorBounceCount >=4)) { 
+                              if (((millis() - nocarTimerMillis) >= nocarTimeoutMillis) && (sensorBounceCount >=2)) { 
                                 nocarTimerFlag = 0;
                               } 
                               //Resets if Loop sticks after 10 seconds and does not record a car.
                               if (millis() - carDetectedMillis > 10000) {
                                  Serial.println("Timeout! No Car Counted");
-                        mqtt_client.publish(MQTT_PUB_TOPIC5, "Timeout! Car: ",String(totalDailyCars+1).c_str());
+                        mqtt_client.publish(MQTT_PUB_TOPIC5, String(totalDailyCars+1).c_str());
                                  carPresentFlag=0;
                                  break;
                               }
@@ -815,8 +823,14 @@ void loop() {
                       myFile.print(carCounterCars-totalDailyCars);
                       myFile.print(", ");
                       myFile.print(temp);
+                              myFile.print(" , ");
+                              myFile.print(lastcarDetectedMillis); //Prints car number being detected
+                              myFile.print(" , ");
+                              myFile.print(carDetectedMillis); //Prints car number being detected
                       myFile.print(", ");
-                      myFile.println(sensorBounceFlag);
+                      myFile.print(sensorBounceFlag);
+                      myFile.print(", ");
+                      myFile.println(millis());
                       myFile.close();
                       
                       Serial.print(F("Car Saved to SD Card. Car Number = "));
