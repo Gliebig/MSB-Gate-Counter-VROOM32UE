@@ -795,7 +795,7 @@ void loop() {
              //Main Reset car passing timer
              
              //if (((currentMillis - carDetectedMillis)>=carpassingTimoutMillis) && (detectorState == HIGH) && (nocarTimerFlag == 0)) {
-               if ((detectorState == HIGH) && (nocarTimerFlag == 0)) {
+               if (((detectorState == HIGH) && (nocarTimerFlag == 0)) || (detectorStateLowMillis-lastdetectorStateLowMillis>2000)) {
                   Serial.print(now.toString(buf3));
                   Serial.print(", Millis NoCarTimer = ");
                   Serial.print(currentMillis-nocarTimerMillis);
