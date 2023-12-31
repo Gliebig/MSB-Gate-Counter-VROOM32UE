@@ -33,8 +33,11 @@ D23 - MOSI
 #include "SD.h"
 #include "SPI.h"
 #include <AsyncTCP.h>
-#include <WebServer.h>
-#include <ElegantOTA.h>
+//#include <WebServer.h>
+//#include <ElegantOTA.h>
+#include <ESPAsyncWebServer.h>
+#include <AsyncElegantOTA.h>
+//#include <Arduino_JSON.h>
 
 #define vehicleSensorPin 4
 #define PIN_SPI_CS 5 // The ESP32 pin GPIO5
@@ -76,8 +79,8 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 )EOF";
 
 //Setup Webserver Object
-WebServer server(80);
-
+//WebServer server(80);
+AsyncWebServer server(80);
 
 //#include <DS3231.h>
 RTC_DS3231 rtc;
@@ -111,6 +114,7 @@ const int mqtt_port = mqtt_Port;
 #define MQTT_PUB_TOPIC2  "msb/traffic/exit/time"
 #define MQTT_PUB_TOPIC3  "msb/traffic/exit/count"
 #define MQTT_PUB_TOPIC4  "msb/traffic/exit/inpark"
+#define MQTT_PUB_TOPIC5  "msb/traffic/exit/timeout"
 
 #define MQTT_SUB_TOPIC0  "msb/traffic/enter/count"
 #define MQTT_SUB_TOPIC1  "msb/traffic/exit/resetcount"
@@ -179,7 +183,7 @@ char months[12][4] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "S
 
 
 Adafruit_SSD1306 display = Adafruit_SSD1306(128, 64, &Wire, -1);
-
+/*
 unsigned long ota_progress_millis = 0;
 
 void onOTAStart() {
@@ -205,7 +209,7 @@ void onOTAEnd(bool success) {
   }
   // <Add your own code here>
 }
-
+*/
 
 
 
@@ -468,6 +472,8 @@ void setup() {
   display.setCursor(0, line4);
   display.print("GATE Count");
 
+  //SETUP WEB SEVER
+  /*
     server.on("/", []() {
         server.send(200, "text/plain", "Hi! This is the Gate Counter.");
       });
@@ -480,7 +486,16 @@ void setup() {
 
   server.begin();
   Serial.println("HTTP server started");
+ */
+   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send(200, "text/plain", "Hi! I am the GATE COUNTER ESP32.");
+  });
+
   
+  
+  AsyncElegantOTA.begin(&server);    // Start ElegantOTA
+  server.begin();
+  Serial.println("HTTP server started");
 
 
   Serial.println  ("Initializing Gate Counter");
@@ -493,8 +508,8 @@ void setup() {
 }
 
 void loop() {
-  server.handleClient();
-  ElegantOTA.loop();
+//  server.handleClient();
+//  ElegantOTA.loop();
 
     // non-blocking WiFi and MQTT Connectivity Checks
     if (wifiMulti.run() == WL_CONNECTED) {
@@ -634,6 +649,7 @@ void loop() {
           carPresentFlag = 1; // when detector senses car, set flag car is present.
           carDetectedMillis = millis(); // Freeze time when car was detected
           detectorStateHighMillis = 0;
+          detectorStateLowMillis = millis()-carDetectedMillis;
           lastdetectorState=HIGH;
           DateTime now = rtc.now();
           char buf3[] = "YYYY-MM-DD hh:mm:ss"; //time of day when detector was tripped
@@ -748,11 +764,14 @@ void loop() {
                                          //lastwhileMillis=whileMillis;  
                               
                               // If no car is present and state does not change, then car has passed
-                              if (((currentMillis - nocarTimerMillis) >= nocarTimeoutMillis) && (sensorBounceCount >=4)) { 
+                              if (((millis() - nocarTimerMillis) >= nocarTimeoutMillis) && (sensorBounceCount >=4)) { 
                                 nocarTimerFlag = 0;
                               } 
-                              //Resets if Loop sticks after 15 seconds and does not record a car.
-                              if (currentMillis - carDetectedMillis > 15000) {
+                              //Resets if Loop sticks after 10 seconds and does not record a car.
+                              if (millis() - carDetectedMillis > 10000) {
+                                 Serial.println("Timeout! No Car Counted");
+                        mqtt_client.publish(MQTT_PUB_TOPIC5, "Timeout!:" String(totalDailyCars).c_str());
+                                 carPresentFlag=0;
                                  break;
                               }
 
